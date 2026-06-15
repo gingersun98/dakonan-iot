@@ -352,7 +352,7 @@ public class BallContainer : MonoBehaviour
 13. Hapus `Regular Hole` di Scene.
   
 ### Langkah 2.3 — Memasang Lubang
-1. Klik kanan `Board` di Hierarchy → Create Empty
+1. Klik kanan `Board` di **Hierarchy → Create Empty**
 2. Rename : `Player Grid Holes`
 3. **Transform:**
    - Position: (0.47, 0, 0)
@@ -458,3 +458,27 @@ public class SpriteGridLayout : MonoBehaviour
    - Position: (0, 3.38, 0)
 8. **Sprite Renderer** :
    - Color: `(156, 0, 21, 255)`
+
+### Langkah 2.5 — Membuat Inventory Pemain & Musuh
+1. Klik kanan `Board` di **Hierarchy → 2D Object → Sprites → Square**. Rename menjadi `Player Inventory`.
+2. **Sprite Renderer** :
+   - Size: (1.47, 0.71)
+3. **Transform** :
+   - Position: (0, -4.69, 0)
+4. Tambah komponen **Collider2D** ini :
+
+| Nama Komponen | Offset | Size/Radius | IsTrigger |
+|---------------|--------|-------------|-----------|
+| `CircleCollider2D` | (0, 0) | 0.04 | ❌ |
+| `BoxCollider2D` | (-0.68, 0)* | (0.08, 0.76)* | ❌ |
+| `BoxCollider2D` | (0.68, 0)* | (0.08, 0.76)* | ❌ |
+| `BoxCollider2D` | (0, -0.32)* | (1.42, 0.07)* | ❌ |
+| `BoxCollider2D` | (0, 0.32)* | (1.42, 0.07)* | ❌ |
+
+*Tidak harus sama persis, asalkan bisa membentuk dinding yang menutupi `Player Inventory`
+
+5. Duplikat `Player Inventory`, rename menjadi `Enemy Inventory`.
+6. **Transform** :
+   - Position: (0, 4.69, 0)
+  
+## 📺 TUTORIAL 3 - PEMBUATAN USER INTERFACE
