@@ -151,6 +151,37 @@ Sebelum memulai, pastikan semua package ini sudah terinstall kedalam projek-mu.
 | Rest Client for Unity | [Add to My Assets](https://assetstore.unity.com/packages/p/rest-client-for-unity-102501) > Package Manager > My Assets | Mempermudah mengakses backend dengan REST API. |
 | Cinemachine | Package Manager > Unity Registry | Sebagai penambah dekorasi disaat pemain menang permainan. |
 | StarterPack_ReplayAudio | [Download Unity Package](./ExportedPackages/StarterPack_ReplayAudio.unitypackage) > Import Package > Custom Package... | Mempercepat pembuatan sistem audio dan pencarian audio. |
+| FirebaseAppCheck & FirebaseAuth | Cek Langkah 1.6 untuk Download | Membantu pembuatan sistem Account dengan Google. |
+
+### Langkah 1.6 — Setup Firebase
+**Firebase** diperlukan untuk pembuatan sistem akun dalam game, jadi pastikan sudah mempunyai projek di dalam **Firebase**.
+
+1. Buat projek baru di **Firebase Console**
+   a. Masuk ke [Firebase Console](console.firebase.google.com) untuk mulai.
+   b. Tekan **Create a Project**
+   c. Masukkan nama projek, pilih opsi yang sesuai dengan projek-mu, lalu klik **Create Project**.
+2. Tambahkan Aplikasi Unity di Console
+   a. Masuk ke projek yang barusan dibuat.
+   b. Klik **Add App** lalu pilih **Unity**
+   c. Masukkan **Bundle ID/Package Name** yang sama dengan projek Unity-mu, contoh **com.developer.replay**.
+   d. Klik **Register App**.
+3. Download SDK dari Firebase
+   a. Disaat penambahan app, mereka juga akan memberi file SDK.
+   b. Apabila tidak ada, bisa pergi ke [Firebase Website](https://firebase.google.com/download/unity) untuk mendownloadnya.
+   c. Setelah download, ekstrak ke dalam folder.
+   d. Di Unity, klik kanan di **Assets → Import Package → Custom Packages...** lalu pilih **FirebaseAppCheck** dan **FirebaseAuth**.
+4. Mengaktifkan **Firebase Authentication**
+   a. Masuk ke [Firebase Console](console.firebase.google.com), lalu ke projek-mu.
+   b. Di bagian kiri, pilih **Security**, lalu **Authentication**.
+   c. Pilih **Sign-in Method**, lalu tekan **Add new provider**.
+   d. Masukkan **WebClientID** dan **SHA-1 Fingerprint** untuk menyelesaikan aktivasi.
+   → Jika tidak memiliki **SHA-1 Fingerprint**, bisa mengikuti [tutorial](https://developers.google.com/android/guides/client-auth?sjid=16907434381778061173-NC) ini.
+   → Jika tidak memiliki WebClientID, bisa ke **Settings > General > View in Google Cloud**, lalu ke **APIs and services >** di tab kiri **Credentials > Web client (auto created by Google Service) > Client ID**, contohnya seperti "123456789012-akjsgaspofaklsdamn12i3g.apps.googleusercontent.com"
+5. Download File Konfigurasi Firebase
+   a. Pastikan lakukan ini setelah mengaktifkan **Firebase Authentication** agar file terupdate dengan **WebClientID** kita.
+   a. Pergi ke **Settings > General > Your apps > "google-services.json".
+   b. File ini akan kita butuhkan untuk melakukan pembuatan akun.
+   c. Masukkan file ini ke dalam unity di **Assets** dengan klik kanan lalu **Import New Asset...** atau tarik filenya ke dalam folder.
 
 ---
 
@@ -604,7 +635,11 @@ Panel Akhir Game akan muncul ketika semua bola sudah masuk ke dalam masing-masin
 2. Di dalam `AudioManager.cs`, sudah disiapkan nama audio dan clip-clipnya.
 3. Jika ingin mengganti, bisa tarik **AudioClip** yang baru ke dalam prefabnya.
 
-### Langkah 4.2 — GameManager.cs
+### Langkah 4.2 — Setup TransitionManager.cs
+1. Klik kanan di **Hierarchy → Create Empty**. Rename menjadi `Transition Manager`.
+2. Di Inspector, **Add Component** → ketik **Transition Manager** → Masukkan **Transition Manager** ke dalam objek.
+
+### Langkah 4.3 — GameManager.cs
 `GameManager.cs` adalah script yang mengurus hampir semua hal dari gameplay. Seperti pergerakan bola, penghitungan score, User Interface, dan lain-lainnya.
 
 1. Buat script baru dengan nama `GameManager.cs`, tambahkan script ke objek bebas, tapi di tutorial ini akan dimasukkan ke `Board`.
@@ -1764,7 +1799,7 @@ public class GameManager : MonoBehaviour
 | `CaptureToBase` | `GameObject[] balls, BallContainer baseContainer` | Digunakan untuk mengambil bola musuh dan bola pemain disaat CAPTURE. |
 
 
-### Langkah 4.3 — ObjectPooling.cs
+### Langkah 4.4 — ObjectPooling.cs
 1. Buat script baru dengan nama `ObjectPooling.cs`, tambahkan script ke objek baru. Rename `GameObject` menjadi `Object Pooling - Ball`.
 `ObjectPooling.cs` adalah teknik untuk menggunakan ulang GameObject daripada terus membuat (Instantiate) dan menghapus (Destroy) objek. Ini akan mengurangi beban CPU dan memori.
 
@@ -1908,8 +1943,8 @@ public class ObjectPooling : MonoBehaviour
 
 ### Langkah 5.2 — Membuat "RockPaperScissors.cs"
 1. Buat script baru dengan nama `RockPaperScissors.cs`, tambahkan script ke objek `Rock Paper Scissors`.
-`RockPaperScissors.cs` akan mengurus semua sistem dalam permainan Batu Gunting Kertas, lalu mengirim hasilnya ke `GameManager.cs`.
 
+`RockPaperScissors.cs` akan mengurus semua sistem dalam permainan Batu Gunting Kertas, lalu mengirim hasilnya ke `GameManager.cs`.
 ```csharp
 using System.Collections;
 using TMPro;
@@ -2088,8 +2123,93 @@ public class RockPaperScissors : MonoBehaviour
 2. Untuk variable yang kosong, itu opsional. Bisa dimasukkan apabila ingin menambah dekorasi.
 3. Coba game, dan kamu akan bisa memulai "Congklak" dengan giliran yang ditentukan oleh "Batu Gunting Kertas".
 
-## ✊ TUTORIAL 6 - PEMBUATAN SCENE MAIN MENU
+## ✊ TUTORIAL 6 - PERSIAPAN PEMBUATAN SCENE "MAIN MENU"
 Dengan selesainya sistem gameplay dalam game ini, sekarang kita lanjut dalam pembuatan scene `Main Menu`.
 
+### Langkah 6.1 — Planning Pembuatan
+Target kita dalam tutorial ini adalah :
+- **Main Panel** → Berisi tombol Play, Settings, Credit, Exit, serta details tentang akun yang kita pakai.
+- **Account Panels** → Berisi tombol untuk Sign In dengan Google, serta juga Sign In secara Guest, namun ini opsional karena hanya untuk Editor. Jika ingin Sign In secara Guest, kita juga membuat **Register** dan **Login** Tab.
+- **Quit Panel** → Berisi konfirmasi untuk keluar dari game.
+- **Settings Panel** → Berisi dua **Slider** yang digunakan untuk mengkontrol volume, serta tombol Back untuk menutupnya.
+- **QR Scanning Panel** → Berisi **Raw Image** untuk menunjukkan kamera pemain sehingga bisa scan kode QR. Kode QR ini akan membuka **Credit Conversion Panel**.
+- **Conversion Credit Panel** → Berisi teks yang menunjukkan berapa banyak gram yang ada dalam timbangan, serta berapa banyak hasil yang didapatkan. Lalu ada dua tombol untuk menerima Credit atau menutup tab.
+- **Select Games Panel** → Berisi 4 tombol yang digunakan untuk memilih mode permainan apa yang ingin dimainkan. Jika menekan salah satu tombol, akan membuka **Select Games Sub-Panel**.
+- **Select Games Sub-Panel (4)** → Berisi informasi mengenai mode permainan yang di tekan di **Select Games Panel**. Panel ini ada 4, dikarenakan ada 4 mode permainan yang bisa dipilih. Disini, pemain juga bisa melihat jumlah Credit serta tombol untuk memulai permainan.
+- **Highlight, Tutorial Tab** → Kedua ini memiliki tujuan yang sama, yaitu sebagai petunjuk tutorial.
+- **Loading Blocker** →  Panel yang menutup seluruh layar, dan berada di paling depan dari semua UI. Bertujuan untuk menunjukkan situasi ketika pemain sedang mencoba koneksi ke backend/internet.
 
-### Langkah 6.1 — Membuat User Interface
+### Langkah 6.2 — Pembuatan Script
+Scene `Main Menu` memperlukan beberapa script untuk bisa jalan. Berikut adalah yang diperlukan :
+
+1. `MainMenu.cs`
+```csharp
+
+```
+
+| Nama Function | Parameters | Penjelasan |
+|---------------|------------|------------|
+| `Initiate` | ❌ | Menyiapkan permainan "Batu Gunting Kertas" agar bisa dimainkan. |
+
+2. `Settings.cs`
+```csharp
+
+```
+
+| Nama Function | Parameters | Penjelasan |
+|---------------|------------|------------|
+| `Initiate` | ❌ | Menyiapkan permainan "Batu Gunting Kertas" agar bisa dimainkan. |
+
+3. `QRScanning.cs`
+```csharp
+
+```
+
+| Nama Function | Parameters | Penjelasan |
+|---------------|------------|------------|
+| `Initiate` | ❌ | Menyiapkan permainan "Batu Gunting Kertas" agar bisa dimainkan. |
+
+4. `ScalePanel.cs`
+```csharp
+
+```
+
+| Nama Function | Parameters | Penjelasan |
+|---------------|------------|------------|
+| `Initiate` | ❌ | Menyiapkan permainan "Batu Gunting Kertas" agar bisa dimainkan. |
+
+5. `HighlightManager.cs`
+```csharp
+
+```
+
+| Nama Function | Parameters | Penjelasan |
+|---------------|------------|------------|
+| `Initiate` | ❌ | Menyiapkan permainan "Batu Gunting Kertas" agar bisa dimainkan. |
+
+6. `TutorialManager.cs`
+```csharp
+
+```
+
+| Nama Function | Parameters | Penjelasan |
+|---------------|------------|------------|
+| `Initiate` | ❌ | Menyiapkan permainan "Batu Gunting Kertas" agar bisa dimainkan. |
+
+7. `CutoutMaskUI.cs`
+```csharp
+
+```
+
+| Nama Function | Parameters | Penjelasan |
+|---------------|------------|------------|
+| `Initiate` | ❌ | Menyiapkan permainan "Batu Gunting Kertas" agar bisa dimainkan. |
+
+8. `FirebaseManager.cs`
+```csharp
+
+```
+
+| Nama Function | Parameters | Penjelasan |
+|---------------|------------|------------|
+| `Initiate` | ❌ | Menyiapkan permainan "Batu Gunting Kertas" agar bisa dimainkan. |
