@@ -150,6 +150,7 @@ Sebelum memulai, pastikan semua package ini sudah terinstall kedalam projek-mu.
 | QR Code Sharing System | [Add to My Assets](https://assetstore.unity.com/packages/tools/game-toolkits/qr-code-sharing-system-287323) > Package Manager > My Assets | Menambah sistem scan QR code yang diperlukan untuk sistem timbangan. |
 | Rest Client for Unity | [Add to My Assets](https://assetstore.unity.com/packages/p/rest-client-for-unity-102501) > Package Manager > My Assets | Mempermudah mengakses backend dengan REST API. |
 | Cinemachine | Package Manager > Unity Registry | Sebagai penambah dekorasi disaat pemain menang permainan. |
+| StarterPack_ReplayAudio | [Download Unity Package](./ExportedPackages/StarterPack_ReplayAudio.unitypackage) > Import Package > Custom Package... | Mempercepat pembuatan sistem audio dan pencarian audio. |
 
 ---
 
@@ -344,6 +345,16 @@ public class BallContainer : MonoBehaviour
     }
 }
 ```
+
+| Nama Function | Parameters | Penjelasan |
+|---------------|------------|------------|
+| `DoJitter` & `TriggerJitter` | ❌ | Membuat animasi pergerakan kecil dalam teks. |
+| `InsertBall` | `GameObject ball` | Memasukkan bola ke dalam lubang. |
+| `TakeAllBalls` | ❌ | Mengambil semua bola yang ada di dalam lubang. |
+| `CheckBallCount` | ❌ | Mengecek berapa banyak bola di dalam lubang. |
+| `OnClicked` | ❌ | Mengubah state lubang menjadi `isSelected = true`, dan apabila `isSelected` sudah true, akan memulai giliran pemain untuk jalan.|
+| `UpdateUI` | ❌ | Mengubah tampilan lubang. |
+
 6. Tambahkan script ini ke dalam `Regular Hole`.
 7. Buat indikator jumlah bola dalam lubang menggunakan `TextMeshPro`. Klik kanan `Regular Hole` di **Hierarchy → 2D Object → Sprites → Square**, lalu rename menjadi `Player Indicator`. Pasang di kanannya `Regular Hole`.
 8. Klik kanan `Player Indicator` di **Hierarchy → Create Empty**, lalu rename menjadi `Player Display Text`. Rapikan sesuai keinginanmu.
@@ -586,7 +597,14 @@ Panel Akhir Game akan muncul ketika semua bola sudah masuk ke dalam masing-masin
 3. Rapikan dan sesuaikan posisi tombol dengan keinginan-mu.
 4. Klik kanan di **Result Panel → UI (Canvas) → Text - TextMeshPro**. Rename menjadi `Result Text`. Posisikan sesuai keinginan.
 
-## 📜 TUTORIAL 4 - PEMBUATAN "GameManager.cs"
+## 📜 TUTORIAL 4 - PEMBUATAN SCRIPT
+
+### Langkah 4.1 — Setup SoundManager.cs
+1. Buka folder **Assets/AudioSetup**, dan masukkan prefab AudioManager dalam scene.
+2. Di dalam `AudioManager.cs`, sudah disiapkan nama audio dan clip-clipnya.
+3. Jika ingin mengganti, bisa tarik **AudioClip** yang baru ke dalam prefabnya.
+
+### Langkah 4.2 — GameManager.cs
 `GameManager.cs` adalah script yang mengurus hampir semua hal dari gameplay. Seperti pergerakan bola, penghitungan score, User Interface, dan lain-lainnya.
 
 1. Buat script baru dengan nama `GameManager.cs`, tambahkan script ke objek bebas, tapi di tutorial ini akan dimasukkan ke `Board`.
@@ -764,7 +782,9 @@ public class GameManager : MonoBehaviour
         isPlayerTurn = false;
 
         resultPanel.SetActive(false);
+        if (playerVictoryCam != null)
         playerVictoryCam.SetActive(false);
+        if (enemyVictoryCam != null)
         enemyVictoryCam.SetActive(false);
 
         if (enemyCornerAnim != null)
@@ -775,8 +795,14 @@ public class GameManager : MonoBehaviour
         playerVictoryText.gameObject.SetActive(false);
         enemyVictoryText.gameObject.SetActive(false);
 
-        rpsManager.gameObject.SetActive(true);
-        rpsManager.Initiate();
+        if (rpsManager != null)
+        {
+            rpsManager.gameObject.SetActive(true);
+            rpsManager.Initiate();
+        } else
+        {
+            SuccessRPS(true);
+        }
     }
 
     public void SuccessRPS(bool playerWon)
@@ -836,6 +862,7 @@ public class GameManager : MonoBehaviour
 
                     if (isLastBall)
                     {
+                        if (rpsManager != null)
                         rpsManager.gameObject.SetActive(false);
 
                         if (isPlayerTurn)
@@ -1064,6 +1091,7 @@ public class GameManager : MonoBehaviour
                 }
 
                 SoundManager.instance.Play("capture");
+                if (impulseSource != null)
                 impulseSource.GenerateImpulse();
                 yield return new WaitForSeconds(turboToggle.isOn ? 0.1f : 1f);
 
@@ -1269,6 +1297,7 @@ public class GameManager : MonoBehaviour
                 StartCoroutine(CaptureToBase(capturedOpposite, enemyBase));
                 StartCoroutine(CaptureToBase(capturedSelf, enemyBase));
                 SoundManager.instance.Play("capture");
+                if (impulseSource != null)
                 impulseSource.GenerateImpulse();
                 yield return new WaitForSeconds(turboToggle.isOn ? 0.1f : 1f);
                 SwitchPlayerTurn();
@@ -1413,6 +1442,7 @@ public class GameManager : MonoBehaviour
         GameObject winnerCam =
             isPlayer ? playerVictoryCam : enemyVictoryCam;
 
+        if (winnerCam != null)
         winnerCam.SetActive(true);
         winnerText.text = "0";
         winnerText.gameObject.SetActive(true);
@@ -1712,8 +1742,8 @@ public class GameManager : MonoBehaviour
 }
 ```
 
-| Nama Function | Parameters | Penjelasan Function |
-|---------------|------------|---------------------|
+| Nama Function | Parameters | Penjelasan |
+|---------------|------------|------------|
 | `Update` & `TrySelectContainer` | ❌ | Mendeteksi input dari pemain dan memilih lubang mana yang dipilih oleh pemain. |
 | `StartGame` | ❌ | Menyiapkan game untuk dimainkan, seperti membersihkan papan, spawning bola, dan menyiapkan `RockPaperScissors.cs` |
 | `SuccessRPS` | `bool playerWon` | Memulai game setelah pemain sudah melakukan **Batu Gunting Kertas** dengan lawan. Jika `playerWon` itu true, pemain akan mulai duluan, dan sebaliknya. |
@@ -1732,3 +1762,334 @@ public class GameManager : MonoBehaviour
 | `MoveToTarget` & `MoveCoroutine` | `Transform movedObject, Transform/Vector3 target, float travelTime, float delay, Action onComplete` | Memberikan animasi jalannya objek dari posisi awal ke posisi `target`. Hanya digunakan oleh perpindahan bola.|
 | `PlaySFX` | `string name` | Memainkan sound effect. Biasa digunakan untuk tombol UI. |
 | `CaptureToBase` | `GameObject[] balls, BallContainer baseContainer` | Digunakan untuk mengambil bola musuh dan bola pemain disaat CAPTURE. |
+
+
+### Langkah 4.3 — ObjectPooling.cs
+1. Buat script baru dengan nama `ObjectPooling.cs`, tambahkan script ke objek baru. Rename `GameObject` menjadi `Object Pooling - Ball`.
+`ObjectPooling.cs` adalah teknik untuk menggunakan ulang GameObject daripada terus membuat (Instantiate) dan menghapus (Destroy) objek. Ini akan mengurangi beban CPU dan memori.
+
+```csharp
+using System.Collections.Generic;
+using UnityEngine;
+
+public class ObjectPooling : MonoBehaviour
+{
+    public GameObject prefab;
+    public Queue<GameObject> pool = new Queue<GameObject>();
+    public int maxAvailable;
+    public bool destroyInstead; // instead of enqueing, it will destroy
+    int currentlyAvailable;
+    public int prebuildObject = 0;
+    List<GameObject> prebuilds;
+
+    private void Start()
+    {
+        if (prebuildObject <= 0)
+        {
+            return;
+        }
+
+        prebuilds = new List<GameObject>();
+        for (int i = 0; i < prebuildObject; i++)
+        {
+            GameObject prebuilt = GetObject();
+            prebuilt.transform.SetParent(transform, false);
+            prebuilds.Add(prebuilt);
+        }
+        foreach (GameObject obj in prebuilds)
+        {
+            ReturnObject(obj);
+        }
+    }
+
+    public GameObject GetObject()
+    {
+        if (pool.Count > 0)
+        {
+            GameObject obj = pool.Dequeue();
+            obj.SetActive(true);
+            return obj;
+        } else
+        {
+            if (maxAvailable > 0)
+            {
+                if (currentlyAvailable >= maxAvailable)
+                {
+                    if (transform.parent.childCount > 0)
+                    {
+                        transform.GetChild(0).gameObject.SetActive(true);
+                        return transform.GetChild(0).gameObject;
+                    } else
+                    {
+                        print("There's nothing to use here!");
+                        return null;
+                    }
+                }
+                else
+                {
+                    currentlyAvailable++;
+                    return Instantiate(prefab);
+                }
+            }
+            else
+            {
+                currentlyAvailable++;
+                return Instantiate(prefab);
+            }
+        }
+    }
+
+    public void ReturnObject(GameObject obj)
+    {
+        if (!destroyInstead)
+        {
+            obj.SetActive(false);
+            pool.Enqueue(obj);
+        } else
+        {
+            Destroy(obj);
+        }
+    }
+}
+
+```
+
+| Nama Function | Parameters | Penjelasan |
+|---------------|------------|------------|
+| `Start` | ❌ | Membuat objek baru lalu disimpan. Hanya akan jalan apabila variable `prebuildObject` lebih dari 0. |
+| `GetObject` | ❌ | Mengambil objek yang disimpan lalu diberikan ke pemain. Apabila tidak ada, objek akan di buat baru dengan **Instantiate**. |
+| `ReturnObject` | `GameObject obj` | Mengembalikan objek yang digunakan ke dalam script, sehingga bisa digunakan lagi nanti. |
+
+### Langkah 4.4 — Memasukkan Variables dan Functions
+1. **ObjectPooling.cs** :
+   - Prefab : `Ball` → Prefab `Ball` yang ada di folder **Prefabs**.
+   - Prebuild Object : `96`
+
+2. Di Inspector, masukkan variable yang kosong :
+   - Balls Per Hole : `7`
+   - Player Base : `Player Base (BallContainer)` → Lubang yang besar di bagian bawah layar, warna biru.
+   - Enemy Base : `Enemy Base (BallContainer)` → Lubang yang besar di bagian atas layar, warna merah.
+   - Player Holes : `Regular Hole` → Masukkan semua lubang biru yang ada di kanan layar.
+   - Enemy Holes : `Regular Hole` → Masukkan semua lubang merah yang ada di kiri layar.
+   - Ball Pool : `Object Pooling - Ball` → Objek yang menyimpan `ObjectPooling.cs` dengan prefab `Ball`.
+   - Turbo Toggle : `Turbo Mode - Toggle` → Masukkan `Toggle` dengan label berisi `Turbo Mode`.
+   - Result Panel : `Result Panel` → Masukkan Panel Akhir Game yang dibuat di Tutorial 3.3
+   - Result Text : `Result Text` → Teks yang ada di dalam panel `Result Panel`.
+   - Player Victory Text : `Display Value (TextMeshPro)` → Teks yang ada di dalam `Player Inventory`.
+   - Enemy Victory Text : `Display Value (TextMeshPro)` → Teks yang ada di dalam `Enemy Inventory`.
+   - Move Curve : `Preset 4` → Pilih sesuai keinginan, ini hanya mengatur kecepatan pergerakan bola.
+   - Player Inventory : `Player Inventory (Transform)`
+   - Enemy Inventory : `Enemy Inventory (Transform)`
+   - RPS Manager : `null` → Kosongkan dulu, kita akan membuat ini setelah tutorial ini.
+   - Transition : `CircleWipe (TransitionSettings)` → Gunakan salah satu template yang sudah ada dari package.
+  
+3. Beberapa variables yang kosong bersifat opsional karena hanya dekorasi.
+4. Berikan masing-masing tombol `Main Menu` dan `Restart` fungsi dengan `GameManager.cs`. Dalam OnClick(), masukkan :
+   `Main Menu` :
+   - `Board` > `GameManager` > PlaySFX("button")
+   - `Board` > `GameManager` > SceneTravel(0)
+   `Restart` :
+   - `Board` > `GameManager` > PlaySFX("button")
+   - `Board` > `GameManager` > StartGame()
+
+## ✊ TUTORIAL 5 - PEMBUATAN BATU GUNTING KERTAS - MINIGAME
+
+### Langkah 5.1 — Membuat User Interface
+1. Klik kanan di **Hierarchy → UI (Canvas) → Panel**. Rename menjadi `Rock Paper Scissors`.
+2. Cari 3 sprite yang menunjukkan 3 jenis tangan, yaitu Batu, Gunting, dan Kertas.
+3. Klik kanan di **`Rock Paper Scissors` → UI (Canvas) → Image**. Rename menjadi `Player's Hand`. Ini akan menjadi tangan yang akan digunakan pemain.
+4. Taruh tangan di posisi yang diinginkan.
+5. Duplikat `Player's Hand`, rename menjadi `Enemy's Hand`, dan taruh di posisi yang sesuai.
+6. Ganti sprite dalam kedua tangan tersebut dengan salah satu tangan yang ingin digunakan, contoh Batu.
+7. Buat dua tombol yang akan digunakan untuk mengganti tangan yang ingin dimainkan oleh pemain, misal merubah ke Batu ke Gunting. Rename kedua menjadi `Up Button` dan `Down Button`.
+8. Pasang tombol ini berdekatan dan di area sekitar `Player's Hand`.
+9. Buat satu tombol lagi yang akan digunakan untuk memulai game. Rename menjadi `Submit Button`.
+10. Secara simple, segini sudah cukup untuk memulai script, namun jika ingin menambah dekorasi, bisa membuat **TextMeshPro - Text (UI)** di masing-masing tangan.
+
+### Langkah 5.2 — Membuat "RockPaperScissors.cs"
+1. Buat script baru dengan nama `RockPaperScissors.cs`, tambahkan script ke objek `Rock Paper Scissors`.
+`RockPaperScissors.cs` akan mengurus semua sistem dalam permainan Batu Gunting Kertas, lalu mengirim hasilnya ke `GameManager.cs`.
+
+```csharp
+using System.Collections;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+public class RockPaperScissors : MonoBehaviour
+{
+    public enum HandType
+    {
+        Batu = 0,
+        Gunting = 1,
+        Kertas = 2
+    }
+
+    public Sprite[] handSprites;
+
+    public Image playerRenderer;
+    public Image enemyRenderer;
+
+    public TextMeshProUGUI playerHandDisplay;
+    public TextMeshProUGUI enemyHandDisplay;
+
+    public GameObject[] disableOnSubmit;
+
+    public Animator winResultAnim;
+    public TextMeshProUGUI winResultText;
+
+    private HandType playerHand;
+    private HandType enemyHand;
+
+    private Animator anim;
+    Coroutine handMovement;
+    bool hasSubmit;
+
+    private void Start()
+    {
+        anim = GetComponent<Animator>();
+    }
+
+    public void Initiate()
+    {
+        playerHand = HandType.Batu;
+        hasSubmit = false;
+        if (handMovement != null) StopCoroutine(handMovement);
+        handMovement = StartCoroutine(SpinningEnemyHand());
+        UpdateUI();
+    }
+
+    public void ChangeHand(bool isNext)
+    {
+        int value = (int)playerHand;
+
+        if (isNext) value++;
+        else value--;
+
+        if (value > 2) value = 0;
+        if (value < 0) value = 2;
+
+        playerHand = (HandType)value;
+        UpdateUI();
+    }
+
+    void UpdateUI()
+    {
+        playerRenderer.sprite = handSprites[(int)playerHand];
+        if (playerHandDisplay != null)
+        playerHandDisplay.text = playerHand.ToString().ToUpper();
+    }
+
+    public void AcceptAnswer()
+    {
+        StartCoroutine(RPSProcess());
+    }
+
+    private IEnumerator RPSProcess()
+    {
+        foreach (var obj in disableOnSubmit)
+            obj.SetActive(false);
+
+        // random enemy hand animation
+        hasSubmit = true;
+        yield return new WaitForSeconds(1.4f);
+        StopCoroutine(handMovement);
+
+        enemyHand = (HandType)Random.Range(0, 3);
+
+        enemyRenderer.sprite = handSprites[(int)enemyHand];
+        if (enemyHandDisplay != null)
+        enemyHandDisplay.text = enemyHand.ToString().ToUpper();
+
+        yield return new WaitForSeconds(0.5f);
+
+        bool playerWin =
+            (playerHand == HandType.Batu && enemyHand == HandType.Gunting) ||
+            (playerHand == HandType.Kertas && enemyHand == HandType.Batu) ||
+            (playerHand == HandType.Gunting && enemyHand == HandType.Kertas);
+
+        bool draw = playerHand == enemyHand;
+
+        if (winResultAnim != null)
+        {
+            winResultAnim.gameObject.SetActive(true);
+            winResultAnim.Play("TurnAppear", 0 ,0f);
+        }
+
+        if (draw)
+        {
+            if (winResultText != null)
+            winResultText.text = "<size=42><b>Seri!</b></size><br>Ulangi lagi!";
+            SoundManager.instance.Play("drawRPS");
+            yield return new WaitForSeconds(1f);
+            ResetRPS();
+            yield break;
+        }
+
+        if (winResultText != null)
+            winResultText.text = playerWin ? "<size=42><b>Kamu menang!</b></size><br>Kamu mendapat giliran pertama." : "<size=42><b>Kamu kalah!</b></size><br>Musuh mendapat giliran pertama.";
+        if (playerWin) SoundManager.instance.Play("winRPS").pitch = 1f; else SoundManager.instance.Play("winRPS").pitch = 0.8f;
+
+        yield return new WaitForSeconds(1.2f);
+
+        GameManager.Instance.SuccessRPS(playerWin);
+        if (anim != null)
+        {
+            anim.Play("PanelDisappear", 0, 0f);
+        } else
+        {
+            gameObject.SetActive(false);
+        }
+    }
+
+    private IEnumerator SpinningEnemyHand()
+    {
+        float t = 0;
+        int index = 0;
+
+        while (t < 1.5f)
+        {
+            t += Time.deltaTime;
+
+            index = (index + 1) % handSprites.Length;
+
+            enemyRenderer.sprite = handSprites[index];
+            if (enemyHandDisplay != null)
+            enemyHandDisplay.text = ((HandType)index).ToString().ToUpper();
+            if (hasSubmit) SoundManager.instance.Play("button");
+
+            yield return new WaitForSeconds((hasSubmit) ? 0.08f : 0.5f);
+        }
+    }
+
+    void ResetRPS()
+    {
+        foreach (var obj in disableOnSubmit)
+            obj.SetActive(true);
+        hasSubmit = false;
+        Initiate();
+    }
+}
+```
+| Nama Function | Parameters | Penjelasan |
+|---------------|------------|------------|
+| `Initiate` | ❌ | Menyiapkan permainan "Batu Gunting Kertas" agar bisa dimainkan. |
+| `ChangeHand` | `bool isNext` | Mengganti tangan yang ingin digunakan oleh pemain. Digunakan pada kedua tombol di panel `Rock Paper Scissors`. |
+| `AcceptAnswer` & `RPSProcess` | ❌ | Memulai permainan dengan tangan yang dipilih, lalu memilih tangan musuh secara acak. Jika salah satu menang, minigame berakhir. |
+| `SpinningEnemyHand` | ❌ | Membuat animasi tangan musuh yang berganti tangan. |
+| `ResetRPS` | ❌ | Mengulang kondisi minigame agar pemain bisa main lagi. Ini hanya jalan ketika pemain dan musuh seri. |
+
+### Langkah 5.3 — Memasukkan Variable
+1. **RockPaperScissors.cs** :
+   - Hand Sprites : `Rock Sprite, Paper Sprite, Scissors Sprite` → Masukkan tiga sprite yang menunjukkan Batu, Gunting, dan Kertas.
+   - Player Renderer : `Player's Hand`
+   - Enemy Renderer : `Enemy's Hand`
+   - Disable on Submit : `Up Button, Down Button, Submit Button` → Ketiga button yang kamu buat, masukkan ke dalam sini.
+2. Untuk variable yang kosong, itu opsional. Bisa dimasukkan apabila ingin menambah dekorasi.
+3. Coba game, dan kamu akan bisa memulai "Congklak" dengan giliran yang ditentukan oleh "Batu Gunting Kertas".
+
+## ✊ TUTORIAL 6 - PEMBUATAN SCENE MAIN MENU
+Dengan selesainya sistem gameplay dalam game ini, sekarang kita lanjut dalam pembuatan scene `Main Menu`.
+
+
+### Langkah 6.1 — Membuat User Interface
