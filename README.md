@@ -141,6 +141,16 @@ Assets/
 | 0 | MainMenu |
 | 1 | Gameplay |
 
+### Langkah 1.5 — Install Package
+Sebelum memulai, pastikan semua package ini sudah terinstall kedalam projek-mu.
+
+| Nama Package | Tempat Download | Fungsi |
+|--------------|-----------------|--------|
+| Easy Transitions | [Add to My Assets](https://assetstore.unity.com/packages/tools/gui/easy-transitions-225607) > Package Manager > My Assets | Mempermudah menambah animasi transisi dalam game. |
+| QR Code Sharing System | [Add to My Assets](https://assetstore.unity.com/packages/tools/game-toolkits/qr-code-sharing-system-287323) > Package Manager > My Assets | Menambah sistem scan QR code yang diperlukan untuk sistem timbangan. |
+| Rest Client for Unity | [Add to My Assets](https://assetstore.unity.com/packages/p/rest-client-for-unity-102501) > Package Manager > My Assets | Mempermudah mengakses backend dengan REST API. |
+| Cinemachine | Package Manager > Unity Registry | Sebagai penambah dekorasi disaat pemain menang permainan. |
+
 ---
 
 ## 🗺️ TUTORIAL 2 - PEMBUATAN TAMPILAN CONGKLAK
@@ -151,12 +161,12 @@ Buka scene "Gameplay" untuk memulai tutorial ini. Kita membuat tampilan sederhan
 1. Hierarchy → Klik Kanan → **2D Object → Sprites → Square**
 2. Rename: `Board`
 3. **Transform:**
-   - Position: (0, 0, 0)
-   - Scale: (1, 1, 1)
+   - Position: `(0, 0, 0)`
+   - Scale: `(1, 1, 1)`
 4. **Sprite Renderer**
-   - Color: (233, 175, 85, 255) → Bebas warna apa, sesuaikan dengan selera.
+   - Color: `233, 175, 85, 255)` → Bebas warna apa, sesuaikan dengan selera.
    - Draw Mode : Sliced
-   - Size : (2.11, 8.25) → Tidak harus sama persis, sesuaikan dengan ukuran layar.
+   - Size : `(2.11, 8.25)` → Tidak harus sama persis, sesuaikan dengan ukuran layar.
    - Order In Layer : -1
 
 ### Langkah 2.2 — Buat Satu Lubang
@@ -165,7 +175,7 @@ Buka scene "Gameplay" untuk memulai tutorial ini. Kita membuat tampilan sederhan
 3. **Sprite Renderer**
    - Color: `(0, 120, 202, 255)` untuk warna pemain, `(156, 0, 21, 255)` untuk warna musuh. → Pilih salah satu terlebih dahulu, kita akan mengganti warnanya disaat Langkah 2.3
    - Draw Mode : Sliced
-   - Size : (0.71, 0.63) → Tidak harus sama persis, sesuaikan dengan ukuran `Board`.
+   - Size : `(0.71, 0.63)` → Tidak harus sama persis, sesuaikan dengan ukuran `Board`.
    - Order In Layer : 0
 4. Tambahkan 6 komponen ini di dalam `Regular Hole` :
 
@@ -355,9 +365,10 @@ public class BallContainer : MonoBehaviour
 1. Klik kanan `Board` di **Hierarchy → Create Empty**
 2. Rename : `Player Grid Holes`
 3. **Transform:**
-   - Position: (0.47, 0, 0)
-   - Scale: (1, 1, 1)
+   - Position: `(0.47, 0, 0)`
+   - Scale: `(1, 1, 1)`
 4. Add Component → New script → `SpriteGridLayout` :
+
 `SpriteGridLayout.cs` digunakan untuk menyusun objek dalam scene diluar `Canvas`, seperti `GridLayoutGroup` tapi untuk `SpriteRenderer`.
 ```csharp
 using UnityEngine;
@@ -434,7 +445,7 @@ public class SpriteGridLayout : MonoBehaviour
 ### Langkah 2.4 — Membuat Rumah Pemain dan Musuh
 1. Tarik prefab `Regular Hole` dari foldernya ke dalam `Board`. Rename menjadi `Player's Base`.
 2. **Transform** :
-   - Position: (0, -3.38, 0)
+   - Position: `(0, -3.38, 0)`
 3. **Sprite Renderer** :
    - Color: `(0, 120, 202, 255)`
    - Size: `(1.74, 1.03)`
@@ -455,7 +466,7 @@ public class SpriteGridLayout : MonoBehaviour
 *Tidak harus sama persis, asalkan bisa membentuk dinding yang menutupi `Regular Hole`
 6. Duplikat `Player's Base` dan rename menjadi `Enemy's Base`.
 7. **Transform** :
-   - Position: (0, 3.38, 0)
+   - Position: `(0, 3.38, 0)`
 8. **Sprite Renderer** :
    - Color: `(156, 0, 21, 255)`
 
@@ -477,8 +488,1247 @@ public class SpriteGridLayout : MonoBehaviour
 
 *Tidak harus sama persis, asalkan bisa membentuk dinding yang menutupi `Player Inventory`
 
-5. Duplikat `Player Inventory`, rename menjadi `Enemy Inventory`.
-6. **Transform** :
-   - Position: (0, 4.69, 0)
+5. Tambahkan objek sebagai child `Player Inventory`, dan tambahakan **TextMeshPro**. Ini akan menjadi score untuk menghitung bola di akhir game. Matikan objek ini untuk sementara.
+6. Duplikat `Player Inventory`, rename menjadi `Enemy Inventory`.
+7. **Transform** :
+   - Position: `(0, 4.69, 0)`
+  
+### Langkah 2.6 — Membuat Bola
+1. Klik kanan di **Hierarchy → 2D Object → Sprites → Circle**. Rename menjadi `Ball`.
+2. **CircleCollider2D** :
+   - IsTrigger: `false`
+4. **Rigidbody2D** :
+   - Linear Damping : `62.8`
+5. Tambahkan script baru dengan nama `GravityToTarget.cs`.
+`GravityToTarget.cs` akan digunakan untuk mengganti point gravitasi oleh suatu **Rigidbody2D**.
+
+```csharp
+using UnityEngine;
+
+[RequireComponent(typeof(Rigidbody2D))]
+public class GravityToTarget : MonoBehaviour
+{
+    public Transform gravityCenter;
+    public float gravityStrength = 10f;
+
+    private Rigidbody2D rb;
+
+    public Vector2 externalForce;
+
+    private void Awake()
+    {
+        rb = GetComponent<Rigidbody2D>();
+    }
+
+    // =========================
+    // PERGANTIAN POINT GRAVITASI
+    // =========================
+    public void Initialize(Transform newTarget)
+    {
+        gravityCenter = newTarget;
+
+        rb.AddForce(Vector2.one * 5);
+    }
+
+    // =========================
+    // SIMULASI GRAVITASI
+    // =========================
+    private void FixedUpdate()
+    {
+        if (gravityCenter == null)
+            return;
+
+        Vector3 targetPos =
+            gravityCenter.position +
+            GameManager.Instance.phoneOffset;
+
+        Vector2 direction =
+            (targetPos - transform.position).normalized;
+
+        rb.AddForce(direction * gravityStrength);
+    }
+}
+```
+
+6. **GravityToCenter.cs** :
+   - Gravity Strength : `30`
+7. Simpan objek ini sebagai prefab di folder **Prefabs**.
   
 ## 📺 TUTORIAL 3 - PEMBUATAN USER INTERFACE
+Secara simple, kita akan fokus ke Panel Akhir Game, toggle Turbo Mode, tombol Main Menu dan Restart. Untuk hal dekorasi lainnya seperti Turn Indicator, Player Corner, Enemy Corner, dan lain-lainnya bisa ditentukan oleh kalian.
+
+### Langkah 3.1 — Membuat Button Restart dan Main Menu
+Kedua tombol ini akan digunakan di dua tempat, yaitu di Normal Gameplay dan di Panel Akhir Game. Untuk langkah ini, akan di Normal Gameplay terlebih dahulu.
+1. Klik kanan di **Hierarchy → UI (Canvas) → Button - TextMeshPro**. Ini akan otomatis membuat **Canvas** dan **Button** di dalamnya.
+2. **Canvas** :
+   - Render Mode : `Screen Space - Camera`
+   - Render Camera : `Main Camera`
+   - Order In Layer : `6`
+3. **Canvas Scaler** :
+   - UI Scale Mode : `Scale with Screen Size`
+   - Reference Resolution : `(720, 1600)`
+   - Match : `0.5`
+4. Di dalam **Button**, ganti **Text (TMP)** menjadi teks yang sesuai dengan tujuan buttonnya, seperti "Restart".
+5. Untuk fungsi buttonnya, akan kita buat di Tutorial 4. Sementara, kita buat tempatnya dulu.
+6. Duplikat button, dan ganti ke "Main Menu".
+7. Taruh di posisi yang diinginkan, pastikan **Anchored Preset** di **RectTransform** sesuai dengan posisinya di layar, seperti kanan atas, atau kiri bawah.
+
+### Langkah 3.2 — Membuat Toggle "Turbo Mode"
+Turbo Mode akan digunakan untuk mempercepat gameplay "Congklak".
+1. Klik kanan di **Hierarchy → UI (Canvas) → Toggle**.
+2. Ganti **Label** di dalam **Toggle** menjadi teks yang sesuai, seperti "Turbo Mode".
+3. Rapikan teks jika perlu, dan posisikan di tempat yang diinginkan.
+
+### Langkah 3.3 — Membuat Panel Akhir Game
+Panel Akhir Game akan muncul ketika semua bola sudah masuk ke dalam masing-masing rumah. Di tutorial ini akan hanya berisi tombol dan hasil teks, tapi bisa didekorasi sesuai keinginan.
+1. Klik kanan di **Hierarchy → UI (Canvas) → Panel**. Rename menjadi `Result Panel`.
+2. Duplikat tombol `Main Menu` dan `Restart` dan masukkan ke dalam panel `Result Panel`.
+3. Rapikan dan sesuaikan posisi tombol dengan keinginan-mu.
+4. Klik kanan di **Result Panel → UI (Canvas) → Text - TextMeshPro**. Rename menjadi `Result Text`. Posisikan sesuai keinginan.
+
+## 📜 TUTORIAL 4 - PEMBUATAN "GameManager.cs"
+`GameManager.cs` adalah script yang mengurus hampir semua hal dari gameplay. Seperti pergerakan bola, penghitungan score, User Interface, dan lain-lainnya.
+
+1. Buat script baru dengan nama `GameManager.cs`, tambahkan script ke objek bebas, tapi di tutorial ini akan dimasukkan ke `Board`.
+```csharp
+using EasyTransition;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using TMPro;
+using Unity.Cinemachine;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.UI;
+
+public class GameManager : MonoBehaviour
+{
+    [Header("Game Settings")]
+    public int ballsPerHole;
+
+    [Header("Board References")]
+    public BallContainer playerBase;
+    public BallContainer enemyBase;
+
+    public List<BallContainer> playerHoles;
+    public List<BallContainer> enemyHoles;
+
+    [Header("Ball Management")]
+    public ObjectPooling ballPool;
+
+    private List<GameObject> activeBalls = new();
+
+    [Header("UI")]
+    public Toggle turboToggle;
+
+    public GameObject resultPanel;
+    public TextMeshProUGUI resultText;
+
+    public Animator turnNotifyAnim;
+    public TextMeshProUGUI turnNotifyText;
+
+    [Header("Player & Enemy UI")]
+    public Animator playerCornerAnim;
+    public Animator enemyCornerAnim;
+
+    public TextMeshPro playerVictoryText;
+    public TextMeshPro enemyVictoryText;
+
+    [Header("Animation")]
+    public AnimationCurve moveCurve;
+
+    [Header("Inventory")]
+    public Transform playerInventory;
+    public Transform enemyInventory;
+
+    [Header("Cameras")]
+    public GameObject playerVictoryCam;
+    public GameObject enemyVictoryCam;
+
+    [Header("Effects")]
+    public CinemachineImpulseSource impulseSource;
+    public CinemachineImpulseSource explodeSource;
+
+    public ParticleSystem confettiParticle;
+
+    [Header("Managers")]
+    public RockPaperScissors rpsManager;
+
+    [Header("Transition")]
+    public TransitionSettings transition;
+
+    [Header("Runtime")]
+    private bool isPlayerTurn;
+
+    [HideInInspector]
+    public Vector3 phoneOffset;
+
+    public static GameManager Instance { get; private set; }
+
+    private void Awake()
+    {
+        Instance = this;
+    }
+
+    private void Start()
+    {
+        SoundManager.instance.PlayMusic("music");
+        StartGame();
+    }
+
+    private void Update()
+    {
+    #if UNITY_ANDROID || UNITY_IOS
+
+        var accel = Accelerometer.current;
+        Vector3 value = accel != null ? accel.acceleration.ReadValue() : Vector3.zero;
+
+        phoneOffset = new Vector3(value.x, value.y, 0f);
+
+    #else
+
+        var keyboard = Keyboard.current;
+
+        float x = 0f;
+        float y = 0f;
+
+        if (keyboard != null)
+        {
+            if (keyboard.aKey.isPressed)
+                x = -1f;
+            else if (keyboard.dKey.isPressed)
+                x = 1f;
+
+            if (keyboard.sKey.isPressed)
+                y = -1f;
+            else if (keyboard.wKey.isPressed)
+                y = 1f;
+        }
+
+        phoneOffset = new Vector3(x, y, 0f);
+
+#endif
+
+        if (!isPlayerTurn)
+            return;
+
+        if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+        {
+            TrySelectContainer(Mouse.current.position.ReadValue());
+        }
+
+        if (Touchscreen.current != null)
+        {
+            var touch = Touchscreen.current.primaryTouch;
+
+            if (touch.press.wasPressedThisFrame)
+            {
+                TrySelectContainer(touch.position.ReadValue());
+            }
+        }
+    }
+
+    private void TrySelectContainer(Vector2 screenPos)
+    {
+        Camera cam = Camera.main;
+        if (cam == null) return;
+
+        Vector2 worldPoint = cam.ScreenToWorldPoint(screenPos);
+
+        RaycastHit2D hit = Physics2D.Raycast(worldPoint, Vector2.zero);
+
+        if (hit.collider == null)
+            return;
+
+        BallContainer container =
+            hit.collider.GetComponentInParent<BallContainer>();
+
+        if (container == null)
+            return;
+
+        container.OnClicked();
+    }
+
+    public void StartGame()
+    {
+        ClearBalls();
+
+        int totalBall = ballsPerHole * 7;
+
+        for (int i = 0; i < totalBall; i++)
+        {
+            AddBall(playerBase);
+            AddBall(enemyBase);
+        }
+
+        isPlayerTurn = false;
+
+        resultPanel.SetActive(false);
+        playerVictoryCam.SetActive(false);
+        enemyVictoryCam.SetActive(false);
+
+        if (enemyCornerAnim != null)
+        enemyCornerAnim.Play("CornerEnemyDisappear", 0);
+        if (playerCornerAnim != null)
+        playerCornerAnim.Play("CornerProfileDisappear", 0);
+
+        playerVictoryText.gameObject.SetActive(false);
+        enemyVictoryText.gameObject.SetActive(false);
+
+        rpsManager.gameObject.SetActive(true);
+        rpsManager.Initiate();
+    }
+
+    public void SuccessRPS(bool playerWon)
+    {
+        isPlayerTurn = playerWon;
+
+        GameObject[] playerBalls = playerBase.TakeAllBalls();
+        GameObject[] enemyBalls = enemyBase.TakeAllBalls();
+
+        float delayStep = turboToggle.isOn ? 0.01f : 0.05f;
+        float travelTime = turboToggle.isOn ? 0.05f : 0.2f;
+
+        for (int i = 0; i < playerBalls.Length; i++)
+        {
+            GameObject ball = playerBalls[i];
+
+            BallContainer targetHole =
+                playerHoles[i % playerHoles.Count];
+
+            GravityToTarget gravity =
+                ball.GetComponent<GravityToTarget>();
+
+            MoveToTarget(
+                ball.transform,
+                targetHole.transform,
+                travelTime,
+                i * delayStep,
+                () =>
+                {
+                    gravity.Initialize(targetHole.transform);
+                    targetHole.InsertBall(ball);
+                    SoundManager.instance.Play("tap");
+                });
+        }
+
+        for (int i = 0; i < enemyBalls.Length; i++)
+        {
+            GameObject ball = enemyBalls[i];
+
+            BallContainer targetHole =
+                enemyHoles[i % enemyHoles.Count];
+
+            GravityToTarget gravity =
+                ball.GetComponent<GravityToTarget>();
+
+            bool isLastBall = i == enemyBalls.Length - 1;
+
+            MoveToTarget(
+                ball.transform,
+                targetHole.transform,
+                travelTime,
+                i * delayStep,
+                () =>
+                {
+                    gravity.Initialize(targetHole.transform);
+                    targetHole.InsertBall(ball);
+
+                    if (isLastBall)
+                    {
+                        rpsManager.gameObject.SetActive(false);
+
+                        if (isPlayerTurn)
+                        {
+                            SwitchPlayerTurn();
+                        }
+                        else
+                        {
+                            SwitchEnemyTurn();
+                        }
+                    }
+                });
+        }
+    }
+
+    public void AddBall(BallContainer hole)
+    {
+        GameObject ball = ballPool.GetObject();
+
+        ball.transform.SetParent(hole.transform);
+        ball.transform.localPosition = Vector3.zero;
+
+        GravityToTarget gravity = ball.GetComponent<GravityToTarget>();
+
+        if (gravity != null)
+        {
+            gravity.Initialize(hole.transform);
+        }
+
+        hole.InsertBall(ball);
+
+        if (!activeBalls.Contains(ball))
+        {
+            activeBalls.Add(ball);
+        }
+    }
+
+    public void ClearBalls()
+    {
+        foreach (BallContainer hole in playerHoles)
+        {
+            GameObject[] balls = hole.TakeAllBalls();
+
+            foreach (GameObject ball in balls)
+            {
+                ballPool.ReturnObject(ball);
+                activeBalls.Remove(ball);
+            }
+        }
+
+        foreach (BallContainer hole in enemyHoles)
+        {
+            GameObject[] balls = hole.TakeAllBalls();
+
+            foreach (GameObject ball in balls)
+            {
+                ballPool.ReturnObject(ball);
+                activeBalls.Remove(ball);
+            }
+        }
+
+        foreach (GameObject ball in playerBase.TakeAllBalls())
+        {
+            ballPool.ReturnObject(ball);
+            activeBalls.Remove(ball);
+        }
+
+        foreach (GameObject ball in enemyBase.TakeAllBalls())
+        {
+            ballPool.ReturnObject(ball);
+            activeBalls.Remove(ball);
+        }
+
+        foreach (GameObject ball in activeBalls)
+        {
+            if (ball != null && ball.activeInHierarchy)
+            {
+                ballPool.ReturnObject(ball);
+            }
+        }
+
+        activeBalls.Clear();
+    }
+
+    public IEnumerator StartPlayerTurn(BallContainer containerToTake, bool hasSpunBefore)
+    {
+        isPlayerTurn = false;
+        DeselectAll();
+
+        bool isPlayerSide = containerToTake.isPlayerSide;
+
+        GameObject[] takenBalls = containerToTake.TakeAllBalls();
+
+        activeBalls = new List<GameObject>(takenBalls);
+
+        foreach (GameObject ball in activeBalls)
+        {
+            MoveToTarget(
+                ball.transform,
+                playerInventory,
+                0.2f,
+                0f,
+                null
+            );
+
+            GravityToTarget g = ball.GetComponent<GravityToTarget>();
+            if (g != null)
+                g.Initialize(playerInventory);
+        }
+        SoundManager.instance.Play("pickUp");
+
+        yield return new WaitForSeconds(turboToggle.isOn ? 0.1f : 1f);
+
+        bool onPlayerSide = containerToTake.isPlayerSide;
+        int holeIndexProgress = onPlayerSide ? playerHoles.IndexOf(containerToTake) + 1 : enemyHoles.IndexOf(containerToTake) + 1;
+
+        bool hasSpunAround = hasSpunBefore;
+
+        BallContainer currentTarget = null;
+
+        int i = 0;
+        float pitchProgress = 1f;
+
+        while (i < activeBalls.Count)
+        {
+            GameObject ball = activeBalls[i];
+
+            BallContainer nextContainer = null;
+
+            if (onPlayerSide)
+            {
+                if (holeIndexProgress >= playerHoles.Count)
+                {
+                    nextContainer = playerBase;
+
+                    onPlayerSide = false;
+                    holeIndexProgress = 0;
+                }
+                else
+                {
+                    nextContainer = playerHoles[holeIndexProgress];
+                    holeIndexProgress++;
+                }
+            }
+            else
+            {
+                if (holeIndexProgress >= enemyHoles.Count)
+                {
+                    nextContainer = playerHoles[0];
+                    onPlayerSide = true;
+                    holeIndexProgress = 1;
+
+                    hasSpunAround = true;
+                }
+                else
+                {
+                    nextContainer = enemyHoles[holeIndexProgress];
+                    holeIndexProgress++;
+                }
+            }
+
+            currentTarget = nextContainer;
+
+            bool wasEmpty = nextContainer.CheckBallCount() == 0;
+
+            MoveToTarget(
+                ball.transform,
+                nextContainer.transform,
+                0.25f,
+                0f,
+                null
+            );
+
+            GravityToTarget g2 = ball.GetComponent<GravityToTarget>();
+            if (g2 != null)
+                g2.Initialize(nextContainer.transform);
+
+            nextContainer.InsertBall(ball);
+
+            SoundManager.instance.Play("drop").pitch = pitchProgress;
+
+            pitchProgress += 0.1f;
+
+            i++;
+
+            yield return new WaitForSeconds(turboToggle.isOn ? 0.1f : 0.15f);
+        }
+
+        yield return new WaitForSeconds(turboToggle.isOn ? 0.1f : 1f);
+
+        if (currentTarget == playerBase)
+        {
+            SwitchPlayerTurn();
+            yield break;
+        }
+
+        if (!currentTarget.isPlayerSide)
+        {
+            if (currentTarget.CheckBallCount() <= 1)
+            {
+                SwitchEnemyTurn();
+                yield break;
+            } else
+            {
+                StartCoroutine(StartPlayerTurn(currentTarget, hasSpunBefore));
+                yield break;
+            }
+        }
+
+        if (currentTarget.isPlayerSide)
+        {
+            bool wasEmpty = currentTarget.CheckBallCount() == 1;
+
+            if (wasEmpty && hasSpunAround)
+            {
+                int index = playerHoles.IndexOf(currentTarget);
+                int mirroredIndex = playerHoles.Count - 1 - index;
+                BallContainer opposite = enemyHoles[mirroredIndex];
+                if (opposite.CheckBallCount() > 0)
+                {
+                    GameObject[] capturedOpposite = opposite.TakeAllBalls();
+                    GameObject[] capturedSelf = currentTarget.TakeAllBalls();
+
+                    StartCoroutine(CaptureToBase(capturedOpposite, playerBase));
+                    StartCoroutine(CaptureToBase(capturedSelf, playerBase));
+                }
+
+                SoundManager.instance.Play("capture");
+                impulseSource.GenerateImpulse();
+                yield return new WaitForSeconds(turboToggle.isOn ? 0.1f : 1f);
+
+                SwitchEnemyTurn();
+                yield break;
+            }
+
+            if (currentTarget.CheckBallCount() > 1)
+            {
+                StartCoroutine(StartPlayerTurn(currentTarget, hasSpunBefore));
+                yield break;
+            }
+
+            SwitchEnemyTurn();
+            yield break;
+        }
+    }
+
+    private void DecideEnemyHoles()
+    {
+        List<BallContainer> validHoles = new List<BallContainer>();
+
+        foreach (BallContainer hole in enemyHoles)
+        {
+            if (hole.CheckBallCount() > 0)
+                validHoles.Add(hole);
+        }
+
+        if (validHoles.Count == 0)
+            return;
+
+        float bestScore = float.MinValue;
+        List<BallContainer> best = new List<BallContainer>();
+
+        foreach (BallContainer hole in validHoles)
+        {
+            BallAheadResult r = CheckBallAhead(hole, hole.CheckBallCount());
+
+            float score = 0f;
+
+            // ✔ capture = strongest move
+            if (r.canCapture)
+                score += 200f;
+
+            // ✔ extra turn (base landing)
+            if (r.landedOnBase)
+                score += 120f;
+
+            // ✔ chain potential
+            if (r.causesRelay)
+                score += 80f;
+
+            // ❌ dangerous empty landing without capture
+            if (r.wasEmptyLanding && !r.canCapture)
+                score -= 150f;
+
+            // small preference: more balls = longer influence
+            score += hole.CheckBallCount() * 2f;
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best.Clear();
+                best.Add(hole);
+            }
+            else if (Mathf.Approximately(score, bestScore))
+            {
+                best.Add(hole);
+            }
+        }
+
+        BallContainer chosen =
+            best[UnityEngine.Random.Range(0, best.Count)];
+
+        StartCoroutine(StartEnemyTurn(chosen, false));
+    }
+
+    public IEnumerator StartEnemyTurn(BallContainer containerToTake, bool hasSpunBefore)
+    {
+        isPlayerTurn = false;
+        DeselectAll();
+        yield return new WaitForSeconds(turboToggle.isOn ? 0.1f : 0.8f);
+
+        GameObject[] takenBalls = containerToTake.TakeAllBalls();
+
+        activeBalls = new List<GameObject>(takenBalls);
+
+        foreach (GameObject ball in activeBalls)
+        {
+            MoveToTarget(
+                ball.transform,
+                enemyInventory,
+                0.2f,
+                0f,
+                null
+            );
+
+            GravityToTarget g = ball.GetComponent<GravityToTarget>();
+            if (g != null)
+                g.Initialize(enemyInventory);
+        }
+        SoundManager.instance.Play("pickUp");
+
+        yield return new WaitForSeconds(turboToggle.isOn ? 0.5f : 1f);
+
+        bool onEnemySide = !containerToTake.isPlayerSide;
+        int holeIndexProgress = onEnemySide ? enemyHoles.IndexOf(containerToTake) + 1 : playerHoles.IndexOf(containerToTake) + 1;
+
+        bool hasSpunAround = hasSpunBefore;
+
+        BallContainer currentTarget = null;
+
+        int i = 0;
+        float pitchProgress = 1f;
+
+        while (i < activeBalls.Count)
+        {
+            GameObject ball = activeBalls[i];
+
+            BallContainer nextContainer = null;
+
+            if (onEnemySide)
+            {
+                if (holeIndexProgress >= enemyHoles.Count)
+                {
+                    nextContainer = enemyBase;
+
+                    onEnemySide = false;
+                    holeIndexProgress = 0;
+                }
+                else
+                {
+                    nextContainer = enemyHoles[holeIndexProgress];
+                    holeIndexProgress++;
+                }
+            }
+            else
+            {
+                if (holeIndexProgress >= playerHoles.Count)
+                {
+                    nextContainer = enemyHoles[0];
+                    onEnemySide = true;
+                    holeIndexProgress = 1;
+
+                    hasSpunAround = true;
+                }
+                else
+                {
+                    nextContainer = playerHoles[holeIndexProgress];
+                    holeIndexProgress++;
+                }
+            }
+
+            currentTarget = nextContainer;
+
+            bool wasEmptyBefore = nextContainer.CheckBallCount() == 0;
+
+            MoveToTarget(
+                ball.transform,
+                nextContainer.transform,
+                0.25f,
+                0f,
+                null
+            );
+
+            GravityToTarget g2 = ball.GetComponent<GravityToTarget>();
+            if (g2 != null)
+                g2.Initialize(nextContainer.transform);
+
+            nextContainer.InsertBall(ball);
+
+            SoundManager.instance.Play("drop").pitch = pitchProgress;
+
+            pitchProgress += 0.1f;
+            i++;
+
+            yield return new WaitForSeconds(turboToggle.isOn ? 0.1f : 0.15f);
+        }
+
+        yield return new WaitForSeconds(turboToggle.isOn ? 0.1f : 1f);
+
+        if (currentTarget == enemyBase)
+        {
+            SwitchEnemyTurn();
+            yield break;
+        }
+
+        if (currentTarget.isPlayerSide == false)
+        {
+            bool wasEmpty = currentTarget.CheckBallCount() == 1;
+
+            int index = enemyHoles.IndexOf(currentTarget);
+
+            int mirroredIndex = enemyHoles.Count - 1 - index;
+
+            BallContainer opposite = playerHoles[mirroredIndex];
+
+            if (wasEmpty && hasSpunAround && opposite.CheckBallCount() > 0)
+            {
+                GameObject[] capturedOpposite = opposite.TakeAllBalls();
+                GameObject[] capturedSelf = currentTarget.TakeAllBalls();
+
+                StartCoroutine(CaptureToBase(capturedOpposite, enemyBase));
+                StartCoroutine(CaptureToBase(capturedSelf, enemyBase));
+                SoundManager.instance.Play("capture");
+                impulseSource.GenerateImpulse();
+                yield return new WaitForSeconds(turboToggle.isOn ? 0.1f : 1f);
+                SwitchPlayerTurn();
+                yield break;
+            }
+
+            if (currentTarget.CheckBallCount() > 1)
+            {
+                StartCoroutine(StartEnemyTurn(currentTarget, hasSpunAround));
+                yield break;
+            }
+
+            SwitchPlayerTurn();
+            yield break;
+        }
+
+        else
+        {
+            bool wasEmpty = currentTarget.CheckBallCount() == 1;
+
+            if (wasEmpty)
+            {
+                SwitchPlayerTurn();
+                yield break;
+            }
+
+            if (currentTarget.CheckBallCount() > 1)
+            {
+                StartCoroutine(StartEnemyTurn(currentTarget, hasSpunAround));
+                yield break;
+            }
+
+            SwitchPlayerTurn();
+            yield break;
+        }
+    }
+
+    private void SwitchPlayerTurn()
+    {
+        if (CheckWin())
+            return;
+        int ballAmount = 0;
+        foreach (BallContainer ball in playerHoles)
+        {
+            ballAmount += ball.CheckBallCount();
+        }
+        if (ballAmount <= 0)
+        {
+            SwitchEnemyTurn();
+            return;
+        }
+        isPlayerTurn = true;
+
+        if (playerCornerAnim != null)
+            playerCornerAnim.Play("CornerProfileAppear");
+        if (enemyCornerAnim != null)
+            enemyCornerAnim.Play("CornerEnemyDisappear");
+
+        SoundManager.instance.Play("turnChange");
+        StartNotify("Giliran Pemain");
+    }
+
+    private void SwitchEnemyTurn()
+    {
+        if (CheckWin())
+            return;
+        int ballAmount = 0;
+        foreach (BallContainer ball in enemyHoles)
+        {
+            ballAmount += ball.CheckBallCount();
+        }
+        if (ballAmount <= 0)
+        {
+            SwitchPlayerTurn();
+            return;
+        }
+        isPlayerTurn = false;
+
+        if (enemyCornerAnim != null)
+            enemyCornerAnim.Play("CornerEnemyAppear");
+        if (playerCornerAnim != null)
+            playerCornerAnim.Play("CornerProfileDisappear");
+
+        SoundManager.instance.Play("turnChange");
+        StartNotify("Giliran Musuh");
+        DecideEnemyHoles();
+    }
+
+    public void StartNotify(string notify)
+    {
+        if (turnNotifyText != null)
+            turnNotifyText.text = notify;
+
+        if (turnNotifyAnim != null)
+        {
+            turnNotifyAnim.gameObject.SetActive(true);
+            turnNotifyAnim.Play("TurnAppear", 0, 0);
+        }
+    }
+
+    public bool CheckWin()
+    {
+        foreach (BallContainer hole in playerHoles)
+        {
+            if (hole.CheckBallCount() > 0)
+                return false;
+        }
+
+        foreach (BallContainer hole in enemyHoles)
+        {
+            if (hole.CheckBallCount() > 0)
+                return false;
+        }
+
+        int playerScore = playerBase.CheckBallCount();
+        int enemyScore = enemyBase.CheckBallCount();
+
+        if (playerScore > enemyScore)
+        {
+            StartCoroutine(CountWinningBall(true));
+        }
+        else if (enemyScore > playerScore)
+        {
+            StartCoroutine(CountWinningBall(false));
+        }
+        else
+        {
+            resultPanel.SetActive(true);
+            resultText.text = "DRAW";
+        }
+        return true;
+    }
+
+    private IEnumerator CountWinningBall(bool isPlayer)
+    {
+        BallContainer winnerBase =
+            isPlayer ? playerBase : enemyBase;
+
+        TextMeshPro winnerText =
+            isPlayer ? playerVictoryText : enemyVictoryText;
+
+        GameObject winnerCam =
+            isPlayer ? playerVictoryCam : enemyVictoryCam;
+
+        winnerCam.SetActive(true);
+        winnerText.text = "0";
+        winnerText.gameObject.SetActive(true);
+
+        float pitchProgress = 1f;
+        float originalTime = 0.08f;
+
+        int normalValue = winnerBase.CheckBallCount();
+
+        winnerText.text = "0";
+
+        GameObject[] balls = winnerBase.TakeAllBalls();
+
+        int currentCount = 0;
+
+        foreach (GameObject ball in balls)
+        {
+            ballPool.ReturnObject(ball);
+
+            currentCount++;
+
+            winnerText.text = currentCount.ToString();
+
+            AudioSource source =
+                SoundManager.instance.Play("drop");
+
+            if (source != null)
+            {
+                source.pitch = pitchProgress;
+            }
+
+            pitchProgress += 0.02f;
+
+            yield return new WaitForSeconds(originalTime);
+
+            originalTime *= 0.96f;
+
+            if (originalTime < 0.01f)
+            {
+                originalTime = 0.01f;
+            }
+        }
+
+        if (confettiParticle != null)
+        {
+            confettiParticle.transform.position = winnerBase.transform.position;
+            confettiParticle.gameObject.SetActive(true);
+            confettiParticle.Play();
+        }
+
+        SoundManager.instance.Play("successCounting");
+
+        if (explodeSource != null)
+            explodeSource.GenerateImpulse();
+
+        yield return new WaitForSeconds(2f);
+
+        resultPanel.SetActive(true);
+        resultText.text =
+            isPlayer ? "PLAYER WON!" : "ENEMY WON!";
+    }
+
+    public BallAheadResult CheckBallAhead(BallContainer starter, int amount)
+    {
+        BallAheadResult result = new BallAheadResult();
+
+        bool onPlayerSide = starter.isPlayerSide;
+
+        int index = onPlayerSide
+            ? playerHoles.IndexOf(starter)
+            : enemyHoles.IndexOf(starter);
+
+        BallContainer current = starter;
+
+        for (int i = 0; i < amount; i++)
+        {
+            index++;
+
+            if (onPlayerSide)
+            {
+                if (index >= playerHoles.Count)
+                {
+                    current = playerBase;
+
+                    onPlayerSide = false;
+                    index = 0;
+                }
+                else
+                {
+                    current = playerHoles[index];
+                }
+            }
+            else
+            {
+                if (index >= enemyHoles.Count)
+                {
+                    current = enemyBase;
+
+                    onPlayerSide = true;
+                    index = 0;
+                }
+                else
+                {
+                    current = enemyHoles[index];
+                }
+            }
+        }
+
+
+        result.isOnPlayerSide = current.isPlayerSide;
+
+        result.landedOnBase =
+            (current == playerBase || current == enemyBase);
+
+        result.wasEmptyLanding = current.CheckBallCount() == 0;
+
+        result.canCapture = false;
+
+        if (!result.landedOnBase && result.wasEmptyLanding)
+        {
+            if (current.isPlayerSide)
+            {
+                int idx = playerHoles.IndexOf(current);
+
+                if (idx >= 0)
+                {
+                    int mirroredIndex = playerHoles.Count - 1 - idx;
+
+                    if (enemyHoles[mirroredIndex].CheckBallCount() > 0)
+                    {
+                        result.canCapture = true;
+                    }
+                }
+            }
+            else
+            {
+                int idx = enemyHoles.IndexOf(current);
+
+                if (idx >= 0)
+                {
+                    int mirroredIndex = enemyHoles.Count - 1 - idx;
+
+                    if (playerHoles[mirroredIndex].CheckBallCount() > 0)
+                    {
+                        result.canCapture = true;
+                    }
+                }
+            }
+        }
+
+        result.causesRelay = (!result.landedOnBase && current.CheckBallCount() > 0);
+
+
+        result.amountOfBall = current.CheckBallCount();
+
+        return result;
+    }
+
+    public void DeselectAll()
+    {
+        foreach (BallContainer hole in playerHoles)
+            hole.isSelected = false;
+
+        foreach (BallContainer hole in enemyHoles)
+            hole.isSelected = false;
+    }
+
+    public void SceneTravel(int index)
+    {
+        TransitionManager.Instance().Transition(index, transition, 0);
+    }
+
+    public void MoveToTarget(Transform movedObject, Transform target, float travelTime, float delay = 0f, Action onComplete = null)
+    {
+        StartCoroutine(
+            MoveCoroutine(
+                movedObject,
+                target,
+                travelTime,
+                delay,
+                onComplete));
+    }
+
+    public void MoveToTarget(Transform movedObject, Vector3 target, float travelTime, float delay = 0f, Action onComplete = null)
+    {
+        StartCoroutine(
+            MoveCoroutine(
+                movedObject,
+                target,
+                travelTime,
+                delay,
+                onComplete));
+    }
+
+    private IEnumerator MoveCoroutine(Transform movedObject, Transform target, float travelTime, float delay, Action onComplete = null)
+    {
+        if (turboToggle.isOn)
+        {
+            delay = 0f;
+            travelTime = 0.1f;
+        }
+        if (delay > 0f)
+            yield return new WaitForSeconds(delay);
+
+        Vector3 startPos = movedObject.position;
+        Vector3 endPos = target.position;
+
+        float elapsed = 0f;
+
+        while (elapsed < travelTime)
+        {
+            elapsed += Time.deltaTime;
+
+            float t = Mathf.Clamp01(elapsed / travelTime);
+
+            if (moveCurve != null)
+                t = moveCurve.Evaluate(t);
+
+            movedObject.position =
+                Vector3.Lerp(startPos, endPos, t);
+
+            yield return null;
+        }
+
+        movedObject.position = endPos;
+
+        onComplete?.Invoke();
+    }
+
+    private IEnumerator MoveCoroutine(Transform movedObject, Vector3 target, float travelTime, float delay, Action onComplete = null)
+    {
+        if (turboToggle.isOn)
+        {
+            delay = 0f;
+            travelTime = 0.1f;
+        }
+        if (delay > 0f)
+            yield return new WaitForSeconds(delay);
+
+        Vector3 startPos = movedObject.position;
+        Vector3 endPos = target;
+
+        float elapsed = 0f;
+
+        while (elapsed < travelTime)
+        {
+            elapsed += Time.deltaTime;
+
+            float t = Mathf.Clamp01(elapsed / travelTime);
+
+            if (moveCurve != null)
+                t = moveCurve.Evaluate(t);
+
+            movedObject.position =
+                Vector3.Lerp(startPos, endPos, t);
+
+            yield return null;
+        }
+
+        movedObject.position = endPos;
+
+        onComplete?.Invoke();
+    }
+
+    public void PlaySFX(string name)
+    {
+        SoundManager.instance.Play(name);
+    }
+
+    private IEnumerator CaptureToBase(GameObject[] balls, BallContainer baseContainer)
+    {
+        foreach (GameObject b in balls)
+        {
+            GravityToTarget g = b.GetComponent<GravityToTarget>();
+
+            MoveToTarget(
+                b.transform,
+                baseContainer.transform,
+                0.25f,
+                0f,
+                null
+            );
+
+            if (g != null)
+                g.Initialize(baseContainer.transform);
+
+            yield return new WaitForSeconds(0.05f);
+        }
+
+        yield return new WaitForSeconds(turboToggle.isOn ? 0.1f : 0.3f);
+
+        foreach (GameObject b in balls)
+        {
+            baseContainer.InsertBall(b);
+        }
+    }
+}
+```
+
+| Nama Function | Parameters | Penjelasan Function |
+|---------------|------------|---------------------|
+| `Update` & `TrySelectContainer` | ❌ | Mendeteksi input dari pemain dan memilih lubang mana yang dipilih oleh pemain. |
+| `StartGame` | ❌ | Menyiapkan game untuk dimainkan, seperti membersihkan papan, spawning bola, dan menyiapkan `RockPaperScissors.cs` |
+| `SuccessRPS` | `bool playerWon` | Memulai game setelah pemain sudah melakukan **Batu Gunting Kertas** dengan lawan. Jika `playerWon` itu true, pemain akan mulai duluan, dan sebaliknya. |
+| `AddBall` | `BallContainer hole` | Memunculkan bola baru dan menaruhnya di `hole`. |
+| `ClearBalls` | ❌ | Menghapus semua bola yang ada di papan. |
+| `StartPlayerTurn` | `BallContainer containerToTake, bool hasSpunBefore` | Menjalankan pilihan lubang pemain. Function ini akan mengambil bola dari lubang, dan mulai memindahnya satu-satu ke lubang selanjutnya, serta memikirkan apa yang harus dilakukan selanjutnya setelah bola terakhir di pindah. |
+| `DecideEnemyHoles` | ❌ | Membuat pemilihan lubang secara otomatis yang digunakan oleh musuh atau AI. Musuh akan memprioritaskan lubang yang memberikan mereka keuntungan. |
+| `StartEnemyTurn` | `BallContainer containerToTake, bool hasSpunBefore` | Menjalankan pilihan lubang musuh. Sama seperti `StartPlayerTurn` namun aturannya mengikuti perspektif musuh. |
+| `SwitchPlayerTurn` & `SwitchEnemyTurn` | ❌ | Mengubah siapa pun yang bermain berikutnya, diantara pemain atau musuh. |
+| `StartNotify` | `string notify` | Menunjukkan teks di tengah layar. Digunakan untuk menunjukkan giliran siapa selanjutnya, namun bersifat opsional di tutorial ini. |
+| `CheckWin` | ❌ | Mengecek apakah semua bola sudah masuk ke rumah masing-masing, dan jika sudah, menentukan siapa bola yang paling banyak. |
+| `CountWinningBall` | `bool isPlayer` | Melakukan animasi penghitungan bola, lalu menunjukkan `Panel Akhir Game` setelah selesai. Dijalankan setelah `CheckWin`. |
+| `CheckBallAhead` | `BallContainer starter, int amount` | Mengecek bola akan jatuh di lubang mana apabila memilih `starter` dengan jumlah bola `amount`. Hanya digunakan untuk AI musuh di `DecideEnemyHoles`.|
+| `DeselectAll` | ❌ | Menghilangkan pilihan pemain di semua lubang. |
+| `SceneTravel` | `int index` | Melakukan perpindahan scene. Digunakan oleh tombol `Main Menu`. |
+| `MoveToTarget` & `MoveCoroutine` | `Transform movedObject, Transform/Vector3 target, float travelTime, float delay, Action onComplete` | Memberikan animasi jalannya objek dari posisi awal ke posisi `target`. Hanya digunakan oleh perpindahan bola.|
+| `PlaySFX` | `string name` | Memainkan sound effect. Biasa digunakan untuk tombol UI. |
+| `CaptureToBase` | `GameObject[] balls, BallContainer baseContainer` | Digunakan untuk mengambil bola musuh dan bola pemain disaat CAPTURE. |
