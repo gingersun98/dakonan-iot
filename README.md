@@ -157,30 +157,54 @@ Sebelum memulai, pastikan semua package ini sudah terinstall kedalam projek-mu.
 **Firebase** diperlukan untuk pembuatan sistem akun dalam game, jadi pastikan sudah mempunyai projek di dalam **Firebase**.
 
 1. Buat projek baru di **Firebase Console**
+
    a. Masuk ke [Firebase Console](console.firebase.google.com) untuk mulai.
+   
    b. Tekan **Create a Project**
+   
    c. Masukkan nama projek, pilih opsi yang sesuai dengan projek-mu, lalu klik **Create Project**.
 2. Tambahkan Aplikasi Unity di Console
+   
    a. Masuk ke projek yang barusan dibuat.
+   
    b. Klik **Add App** lalu pilih **Unity**
+   
    c. Masukkan **Bundle ID/Package Name** yang sama dengan projek Unity-mu, contoh **com.developer.replay**.
+   
    d. Klik **Register App**.
 3. Download SDK dari Firebase
+   
    a. Disaat penambahan app, mereka juga akan memberi file SDK.
+   
    b. Apabila tidak ada, bisa pergi ke [Firebase Website](https://firebase.google.com/download/unity) untuk mendownloadnya.
+   
    c. Setelah download, ekstrak ke dalam folder.
+   
    d. Di Unity, klik kanan di **Assets → Import Package → Custom Packages...** lalu pilih **FirebaseAppCheck** dan **FirebaseAuth**.
 4. Mengaktifkan **Firebase Authentication**
+   
    a. Masuk ke [Firebase Console](console.firebase.google.com), lalu ke projek-mu.
+   
    b. Di bagian kiri, pilih **Security**, lalu **Authentication**.
+   
    c. Pilih **Sign-in Method**, lalu tekan **Add new provider**.
+   
    d. Masukkan **WebClientID** dan **SHA-1 Fingerprint** untuk menyelesaikan aktivasi.
+   
    → Jika tidak memiliki **SHA-1 Fingerprint**, bisa mengikuti [tutorial](https://developers.google.com/android/guides/client-auth?sjid=16907434381778061173-NC) ini.
-   → Jika tidak memiliki WebClientID, bisa ke **Settings > General > View in Google Cloud**, lalu ke **APIs and services >** di tab kiri **Credentials > Web client (auto created by Google Service) > Client ID**, contohnya seperti "123456789012-akjsgaspofaklsdamn12i3g.apps.googleusercontent.com"
-5. Download File Konfigurasi Firebase
+   
+   → Jika tidak memiliki WebClientID, bisa ke **Settings > General > View in Google Cloud**.
+   
+   Lalu ke **APIs and services >** di tab kiri **Credentials > Web client (auto created by Google Service) > Client ID**, contohnya seperti `123456789012-akjsgaspofaklsdamn12i3g.apps.googleusercontent.com`
+   
+6. Download File Konfigurasi Firebase
+    
    a. Pastikan lakukan ini setelah mengaktifkan **Firebase Authentication** agar file terupdate dengan **WebClientID** kita.
+   
    a. Pergi ke **Settings > General > Your apps > "google-services.json".
+   
    b. File ini akan kita butuhkan untuk melakukan pembuatan akun.
+   
    c. Masukkan file ini ke dalam unity di **Assets** dengan klik kanan lalu **Import New Asset...** atau tarik filenya ke dalam folder.
 
 ---
@@ -1920,12 +1944,14 @@ public class ObjectPooling : MonoBehaviour
   
 3. Beberapa variables yang kosong bersifat opsional karena hanya dekorasi.
 4. Berikan masing-masing tombol `Main Menu` dan `Restart` fungsi dengan `GameManager.cs`. Dalam OnClick(), masukkan :
+   
    `Main Menu` :
-   - `Board` > `GameManager` > PlaySFX("button")
-   - `Board` > `GameManager` > SceneTravel(0)
+   - `Board` > `GameManager` > **PlaySFX("button")**
+   - `Board` > `GameManager` > **SceneTravel(0)**
+     
    `Restart` :
-   - `Board` > `GameManager` > PlaySFX("button")
-   - `Board` > `GameManager` > StartGame()
+   - `Board` > `GameManager` > **PlaySFX("button")**
+   - `Board` > `GameManager` > **StartGame()**
 
 ## ✊ TUTORIAL 5 - PEMBUATAN BATU GUNTING KERTAS - MINIGAME
 
