@@ -3999,14 +3999,18 @@ Jangan lupa untuk mengisi variable di `TutorialManager.cs` yang ada di **Canvas*
    - Base Link : `https://backend.com' → Masukkan link backend yang kamu punya. Pastikan ada [https://] di bagian awal. Untuk backend, akan diajarkan pembuatannya di [Tutorial 8](#-tutorial-8---pembuatan-backend).
 2. `TutorialManager.cs` :
    - Tutorial States :
-| Index | Target Highlight | Tutorial Text | Shape | Follow Width | Follow Height | Progress After Scan | Skip Tutorial | Skip Text | Enabled On Skip | Disabled On Skip |
-|---------|---------|---------|---------|---------|---------|---------|---------|---------|---------|---------|
-| 0 | Tombol tutup popup Credit | Ups! Sepertinya kamu masih kurang Credit untuk memulai bermain! Mari kita dapatkan dulu. Tutup tab untuk mulai. | Square | ✅ | ✅ | ❌ | ❌ | - | - | - |
-| 1 | Tombol tutup tab | Tutup tab ini untuk melanjutkan. | Square | ✅ | ✅ | ❌ | ❌ | - | - | - |
-| 2 | Tombol Scan QR | Tekan tombol koin untuk memulai tab pemindaian QR! Di sinilah kamu akan mendapatkan Credit! | Circle | ✅ | ✅ | ❌ | ❌ | - | - | - |
-| 3 | Panel Scan QR | Pindai kode QR yang diperlukan untuk melanjutkan! Tidak tahu kode QR mana yang harus dipindai? Periksa di depan timbangan yang akan Anda gunakan! | Square | ✅ | ✅ | ✅ | ✅ | Saya belum punya kode QR. | Modern Scale Panel | QR Scan Panel |
-| 4 | Tombol Klaim Credit | Ini adalah timbangan yang terhubung dengan Anda. Setiap 100 gram pada timbangan akan mendapatkan satu Credit. Masukkan 100 gram sampah ke dalam timbangan, lalu klaim dengan menekan tombol ini! | Square | ✅ | ✅ | ❌ | ❌ | - | - | - |
 
+| Index | Target Highlight | Shape | Progress After Scan | Skip Tutorial | Skip Text |
+|-------|-----------------|--------|--------------------|--------------|-----------|
+| 0 | Tombol tutup popup Credit | Square | ❌ | ❌ | - |
+| 1 | Tombol tutup tab | Square | ❌ | ❌ | - |
+| 2 | Tombol Scan QR | Circle | ❌ | ❌ | - |
+| 3 | Panel Scan QR | Square | ✅ | ✅ | Saya belum punya kode QR. |
+| 4 | Tombol Klaim Credit | Square | ❌ | ❌ | - |
+
+Untuk index 3, pastikan :
+- Disable on Skip : { `QR Scanning Panel` }
+- Enable on Skip : { `Credit Conversion Panel` }
 
 ## 🌐 TUTORIAL 8 - PEMBUATAN BACKEND
 Backend diperlukan untuk mengirim dan menerima data dari timbangan. Untuk itu, kita perlu membuatnya menggunakan `Visual Studio Code`.
