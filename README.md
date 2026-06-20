@@ -1946,12 +1946,12 @@ public class ObjectPooling : MonoBehaviour
 4. Berikan masing-masing tombol `Main Menu` dan `Restart` fungsi dengan `GameManager.cs`. Dalam OnClick(), masukkan :
    
    `Main Menu` :
-   - `Board` > `GameManager` > **PlaySFX("button")**
-   - `Board` > `GameManager` > **SceneTravel(0)**
+   - `Board` > `GameManager` > `**PlaySFX("button")**`
+   - `Board` > `GameManager` > `**SceneTravel(0)**`
      
    `Restart` :
-   - `Board` > `GameManager` > **PlaySFX("button")**
-   - `Board` > `GameManager` > **StartGame()**
+   - `Board` > `GameManager` > `**PlaySFX("button")**`
+   - `Board` > `GameManager` > `**StartGame()**`
 
 ## ✊ TUTORIAL 5 - PEMBUATAN BATU GUNTING KERTAS - MINIGAME
 
@@ -2154,7 +2154,7 @@ Dengan selesainya sistem gameplay dalam game ini, sekarang kita lanjut dalam pem
 
 ### Langkah 6.1 — Planning Pembuatan
 Target kita dalam tutorial ini adalah :
-- **Main Panel** → Berisi tombol Play, Settings, Credit, Exit, serta details tentang akun yang kita pakai.
+- **Main Screen** → Berisi tombol Play, Settings, Credit, Exit, serta details tentang akun yang kita pakai.
 - **Account Panels** → Berisi tombol untuk Sign In dengan Google, serta juga Sign In secara Guest, namun ini opsional karena hanya untuk Editor. Jika ingin Sign In secara Guest, kita juga membuat **Register** dan **Login** Tab.
 - **Quit Panel** → Berisi konfirmasi untuk keluar dari game.
 - **Settings Panel** → Berisi dua **Slider** yang digunakan untuk mengkontrol volume, serta tombol Back untuk menutupnya.
@@ -2232,7 +2232,8 @@ public class MainMenu : MonoBehaviour
     #region API Configuration
 
     [Header("Base URL")]
-    public string baseLink = "https://scaleweight-to-unity-production.up.railway.app";
+	// Ganti ini sesuai dengan link backend-mu.
+    public string baseLink = "https://backend.com";
 
     [Header("Authentication Endpoints")]
     public string registerEndpoint = "/register";
@@ -3726,6 +3727,791 @@ public class FirebaseManager : MonoBehaviour
 }
 ```
 
-| Nama Function | Parameters | Penjelasan |
-|---------------|------------|------------|
-| `Initiate` | ❌ | Menyiapkan permainan "Batu Gunting Kertas" agar bisa dimainkan. |
+| Nama Function        | Parameters | Penjelasan                                                                                                                                            |
+| -------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Awake`              | ❌          | Menginisialisasi singleton `FirebaseManager`, mencegah duplikasi objek, mempertahankan objek antar scene, dan memulai proses inisialisasi Firebase.   |
+| `InitializeFirebase` | ❌          | Memeriksa dependensi Firebase, menginisialisasi Firebase Authentication, mengonfigurasi Google Sign-In, dan menandai Firebase sebagai siap digunakan. |
+
+9. `AnimationEvents.cs`
+```csharp
+using UnityEngine;
+
+[System.Serializable]
+public class AnimationEvent
+{
+    public enum TypeOfEvent { Disable, Enable} // Modify this enum as much as you need.
+    public TypeOfEvent eventType;
+    public GameObject[] target;
+}
+public class AnimationEvents : MonoBehaviour
+{
+    public AnimationEvent[] events;
+    void ActivateEvent(AnimationEvent selected) // Add the effects in your types here...
+    {
+        switch (selected.eventType)
+        {
+            case AnimationEvent.TypeOfEvent.Disable:
+                foreach (GameObject target in selected.target)
+                {
+                    target.SetActive(false);
+                }
+                break;
+            case AnimationEvent.TypeOfEvent.Enable:
+                foreach (GameObject target in selected.target)
+                {
+                    target.SetActive(true);
+                }
+                break;
+        }
+    }
+
+    public void StartEvent(int index)
+    {
+        ActivateEvent(events[index]);
+    }
+
+    public void StartAllEvent()
+    {
+        foreach (AnimationEvent anim in  events)
+        {
+            ActivateEvent(anim);
+        }
+    }
+    
+}
+```
+
+| Nama Function   | Parameters                | Penjelasan                                                                                                        |
+| --------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `ActivateEvent` | `AnimationEvent selected` | Menjalankan aksi berdasarkan jenis event yang dipilih, seperti mengaktifkan atau menonaktifkan GameObject target. |
+| `StartEvent`    | `int index`               | Menjalankan satu event dari daftar `events` berdasarkan indeks yang diberikan.                                    |
+| `StartAllEvent` | ❌                         | Menjalankan seluruh event yang terdapat dalam array `events`.                                                     |
+
+| Nama Class        | Parameters / Fields   | Penjelasan                                                                                                     |
+| ----------------- | --------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `AnimationEvent`  | `eventType`, `target` | Menyimpan konfigurasi sebuah event animasi, termasuk jenis aksi dan objek yang menjadi target.                 |
+| `AnimationEvents` | `events`              | Mengelola dan menjalankan kumpulan `AnimationEvent`, biasanya dipanggil melalui Animation Event pada Animator. |
+
+## 📱 TUTORIAL 7 - PEMBUATAN SCENE MAIN MENU
+
+### Langkah 7.1 — Pembuatan Main Screen
+**Main Screen** adalah tampilan awal disaat pemain pertama kali masuk. Pastikan pemain bisa main, mengatur volume, mendapat Credit, dan keluar dari permainan. Untuk tutorial ini kita memakai design sesuai Unity, bisa diganti sesuai keinginan.
+
+1. Klik kanan di **Hierarchy → UI (Canvas) → Button - TextMeshPro**. Rename dan ganti teks di dalamnya menjadi `Main`.
+2. Tambah script `MainMenu.cs`, `HighlightManager.cs`, dan `TutorialManager.cs` ke objek bebas. Di tutorial ini, kita akan masukkan ke `Canvas`.
+3. Duplikat sebanyak tiga kali, lalu rename dan ganti teks menjadi `Credit`, `Pengaturan`, dan `Keluar`.
+4. Posisikan dan desain **Button** sesuai dengan keinginan.
+5. Tambahkan fungsi ke masing-masing tombol :
+   
+   `Main` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Select Games Panel` > `GameObject` > `**SetActive(true)**` → Tambah fungsi ini setelah kamu membuat panelnya.
+     
+   `Credit` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `QR Scanning Panel` > `GameObject` > `**SetActive(true)**` → Tambah fungsi ini setelah kamu membuat panelnya.
+  
+   `Pengaturan` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Settings Panel` > `GameObject` > `**SetActive(true)**` → Tambah fungsi ini setelah kamu membuat panelnya.
+     
+   `Keluar` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Quit Panel` > `GameObject` > `**SetActive(true)**` → Tambah fungsi ini setelah kamu membuat panelnya.
+  
+6. Buat semacam tab yang berisi nama akun dan tombol untuk `Log Out`.
+
+   `Log Out` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Canvas` > `MainMenu` > `**LogOut()**`
+    
+7. Di `MainMenu.cs`, masukkan variable berikut :
+	- Account Detail : `Account Detail Tab`
+	- Account Name : `Account Name (TextMeshProUGUI)`
+
+### Langkah 7.2 — Pembuatan Panel Template
+Setiap panel yang akan kita buat akan memiliki beberapa hal yang sama, entah desain atau komponen.
+
+1. Klik kanan di **Hierarchy → UI (Canvas) → Panel**. Rename menjadi `TEMPLATE`.
+2. Di **Inspector**, tambah `Canvas Group`, `Animator`, dan `AnimationEvents.cs`.
+
+3. **AnimationEvents.cs** :
+   - Events : (EventType.Disable, `Template`) → Pastikan event menarget diri sendiri, dan EventType menjadi **Disable**.
+
+4. Buat design yang diinginkan terlebih dahulu. Di tutorial ini, akan ada Tab yang isinya ada **TextMeshPro - Text (UI)** serta **Button** untuk menutup panel.
+5. Untuk **Button**, jalankan :
+
+   - `Board` > `GameManager` > `**PlaySFX("button")**`
+
+   - `TEMPLATE` > `Animator` > `**Play("PanelDisappear")**`
+
+6. Jika sudah selesai design, buka tab **Animation** dengan `Window → Animation → Animation`.
+7. Animasi yang kita perlukan adalah `PanelAppear` dan `PanelDisappear`. `PanelAppear` adalah animasi panel yang mulai muncul, seperti **Fade In**. `PanelDisappear` adalah panel yang perlahan menghilang, seperti **Fade Out**. Pastikan di akhir frame `PanelDisappear`, ada **Animation Event** yang menjalankan `AnimationEvents.StartAllEvent()`. Serta, pastikan animasi juga mengkontrol **Canvas Group**, yaitu dibagian **Interactable**. Pastikan `PanelAppear` menyalakan **Interactable** di akhir frame dan `PanelDisappear` mematikan **Interactable** di awal frame.
+8. Matikan **Loop Time** dari kedua **Animation Clip** tersebut dari file yang barusan dibuat.
+9. Di **Animator**, yang diakses melalui `Window → Animation → Animator`, pastikan `PanelAppear` menjadi default clip yang mulai pertama kali. Klik kanan clip `PanelAppear`, lalu klik `Set as Layer Default State`.
+
+### Langkah 7.3 — Pembuatan Panel Lain
+Setelah membuat panel `TEMPLATE`, duplikat dan gunakan design tersebut untuk panel-panel lain. Berikut adalah detail yang diperlukan untuk masing-masing panel.
+
+1. **Account Panel - Ask** → Tab ini hanya memiliki satu tombol, yaitu `Sign in with Google`. Pastikan tombol ini tersambung dengan `Canvas` > `MainMenu` > `**PlaySFX("button")**` dan `Canvas` > `MainMenu` > `**SignInGoogle()**`.
+
+Masukkan panel ini ke script `MainMenu.cs` di variable `Sign In Panel`.
+
+2. **Account Panel - Register (opsional)** → Tab ini berisi dua **TextMeshPro - InputField** yang dinamakan `Username Field` dan `Password Field`. Pastikan `Password Field` memiliki **Content Type** tipe **Password**. Serta, pastikan `Password Field` memiliki tombol kecil untuk menyembunyikan/menunjukkan password. Setelah itu, buat dua tombol untuk memulai tahap **Register** dan mengganti ke tahap **Login**.
+
+   `Mulai Register` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Canvas` > `MainMenu` > `**Register()**`
+     
+   `Ganti ke Login` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Account Panel - Login` > `GameObject` > `**SetActive(true)**`
+   - `Account Panel - Login` > `Animator` > `**Play("PanelAppear")**`
+   - `Account Panel - Register` > `Animator` > `**Play("PanelDisappear")**`
+  
+Di `MainMenu.cs`, masukkan variable berikut :
+- Register Tab : `Account Panel - Register (Animator)`
+- Register Username Field : `Username Field (TMP_Input Field)`
+- Register Password Field : `Password Field (TMP_Input Field)`
+- Register Password Show : `Show Password (Image)`
+
+3. **Account Panel - Login (opsional)** → Sama seperti **Account Panel - Register**, namun tombol yang mengganti ke tahap **Login** berubah menjadi **Register**, dan tombol untuk mulai tahap **Register** berubah menjadi **Login**.
+
+   `Mulai Login` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Canvas` > `MainMenu` > `**Login()**`
+     
+   `Ganti ke Register` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Account Panel - Register` > `GameObject` > `**SetActive(true)**`
+   - `Account Panel - Register` > `Animator` > `**Play("PanelAppear")**`
+   - `Account Panel - Login` > `Animator` > `**Play("PanelDisappear")**`
+
+Di `MainMenu.cs`, masukkan variable berikut :
+- Login Tab : `Account Panel - Login (Animator)`
+- Login Username Field : `Username Field (TMP_Input Field)`
+- Login Password Field : `Password Field (TMP_Input Field)`
+- Login Password Show : `Show Password (Image)`
+  
+4. **Quit Panel** → Memiliki setidaknya 2 tombol untuk konfirmasi ingin keluar atau tidak.
+
+   `Yes - Quit` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Canvas` > `MainMenu` > `**QuitGame()**`
+     
+   `No - Quit` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `QuitPanel` > `Animator` > `**Play("PanelDisappear)**`
+
+5. **Settings Panel** → Memiliki 2 slider yang mengkontrol volume musik dan sound effect. Tambahkan script `Settings.cs` di `Settings Panel`. Tarik kedua slider ke variable yang diperlukan di `Settings.cs`. Pastikan juga ada tombol untuk menutup panel.
+
+   `Music Slider` **OnValueChanged()** :
+   - ``Settings Panel`` > `Settings` > `**SetVolume(true)**`
+  
+   `SFX Slider` **OnValueChanged()** :
+   - ``Settings Panel`` > `Settings` > `**SetVolume(false)**`
+
+7. **QR Scanning Panel** → Memiliki **Raw Image** untuk menunjukkan kamera, tombol untuk menanyakan apabila aplikasi tidak punya akses ke kamera, dan tombol menutup panel. Tambahkan `QRScanning.cs` ke objek `QR Scanning Panel`. Masukkan variable **Raw Image** ke `targetImage` dan tombol menanyakan ke `askForCameraButton`. Serta, buat animasi notifikasi apabila QR gagal untuk discan. Pastikan nama **AnimationClip**-nya adalah `TurnAppear` dan **Loop Time** dimatikan.
+
+Di `MainMenu.cs`, masukkan variable berikut :
+- Camera QR Menu : `QR Scanning Panel (Animator)`
+- Notification QR Appear : `Notification QR (Animator)`
+
+9. **Conversion Credit Panel** → Memiliki 4 **TextMeshPro - Text (UI)** yang menunjukkan jumlah berat, konversi berat ke Credit, jumlah Credit sebelum konversi dan sesudah konversi. Tambahkan `ScalePanel.cs` ke objek `Conversion Credit Panel`. Masukkan variable :
+   - Scale Amount : `Scale Amount Text` → Teks yang menunjukkan jumlah berat.
+   - Credit Amount : `Credit Amount Text` → Teks yang menunjukkan jumlah konversi ke Credit.
+   - Old Balance : `Old Balance Text` → Teks yang menunjukkan jumlah Credit sebelum konversi.
+   - New Balance : `New Balance Text` → Teks yang menunjukkan jumlah Credit sesudah konversi.
+   - Self Anim : `Conversion Credit Panel` → Animator objek itu sendiri.
+   - Value Update : `OPSIONAL` → Bebas mau diisi animasi apa, ini akan jalan setiap isi dari timbangan ter-update.
+   
+   Serta, juga ada tombol `Claim` dan tombol `Back`.  Masukkan fungsi berikut :
+   
+   `Claim` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Canvas` > `MainMenu` > `**DepositScale()**`
+     
+   `Back` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Canvas` > `MainMenu` > `**StopScaleConnection()**`
+  
+Di `MainMenu.cs`, masukkan variable berikut :
+- Modern Scale Panel : `Conversion Credit Panel (Scale Panel)`
+
+10. **Select Games Panel** → Memiliki 4 tombol yang digunakan untuk memilih mode permainan yang ingin dimainkan. Setiap tombol akan membuka **Select Games Sub-Panel** untuk jenis game yang ditunjukkan di tombolnya. Serta ada tombol `Back`.
+
+11. **Select Games Sub-Panel** → Memiliki 2 tombol yang menunjukkan `Main` dan `Kembali`, serta teks yang menunjukkan jumlah Credit yang dimiliki pemain dan teks yang menunjukkan nama permainan/deskripsi dari permainan yang dimainkan. Pastikan ada 4 panel agar setiap tombol di `Select Games Panel` bisa menyalakan panel miliknya.
+
+   `Main` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Canvas` > `MainMenu` > `**PlayGame(1)**` → Untuk "Congklak", indexnya adalah 1. Untuk mode lain, button-nya harus dimatikan **Interactable**.
+
+Setelah membuat keempat panel ini, kembali ke **Select Games Panel**, lalu ke 4 tombol tersebut. Tambahkan fungsi berikut :
+
+   `Congklak Mode` :
+   - `Canvas` > `TutorialManager` > `**CheckForTutorialStart(Back Button)**` → Pilih tombol **Back** yang ada di Congklak Sub-Panel.
+
+   `Gasing Mode` :
+   - `Canvas` > `TutorialManager` > `**CheckForTutorialStart(Back Button)**` → Pilih tombol **Back** yang ada di Gasing Sub-Panel.
+
+   `Ketapel Mode` :
+   - `Canvas` > `TutorialManager` > `**CheckForTutorialStart(Back Button)**` → Pilih tombol **Back** yang ada di Ketapel Sub-Panel.
+
+   `Kelereng Mode` :
+   - `Canvas` > `TutorialManager` > `**CheckForTutorialStart(Back Button)**` → Pilih tombol **Back** yang ada di Kelereng Sub-Panel.
+
+Masukkan teks yang menunjukkan jumlah Credit dalam script `MainMenu.cs` di variable `Every Currency Showcase`. Dalam tutorial, harus ada 4 **TextMeshProUGUI**.
+
+12. **Highlight** → Digunakan untuk menunjukkan tombol yang ingin difokuskan disaat tutorial.
+    a. Klik kanan di **Hierarchy → UI (Canvas) → Image**.
+    b. Ganti sprite menjadi `9-Sliced`, apabila tidak ada, pilih `Background`.
+    c. Tambah komponen `Mask` dan matikan **Show Mask Graphic**.
+    d. Klik kanan di **Highlight → UI (Canvas) → Image**.
+    e. Ganti warnanya menjadi warna hitam dengan sedikit transparan.
+    f. Besarkan bentuknya hingga menutupi semua layar. Untuk lebih aman, buat `Width` dan `Height` menjadi 9999.
+    g. Matikan seluruh objek **Highlight**, akan kita pakai disaat kita membuat sistem tutorial.
+    h. Di `HighlightManager.cs` yang ada di **Canvas**, masukkan variable :
+	- Highlight : `Highlight (Rect Transform)`
+ 	- Highlight Image : `Highlight (Image)`
+	- Every Single Button : "Semua **Button** kecuali `Skip Tutorial` → **Sebaiknya lakukan ini setelah semua tombol sudah dibuat.**
+ 	- Circle Shape : `Circle Sprite.png` → Masukkan sprite berbentuk lingkaran.
+  	- Square Shape : `Square Sprite.png` → Masukkan sprite berbentuk persegi.
+
+14. **Tutorial Tab** → Muncul ketika tutorial sedang jalan. Hanya muncul di bagian atas layar. Beri animasi dengan nama `TutorialAppear` untuk tutorial yang muncul dan update teks, dan `TutorialDisappear` untuk tutorial yang selesai, dan akan menghilang perlahan. Pastikan `Tutorial Tab` memiliki **TextMeshPro - Text (UI)** di dalamnya. Tambahkan juga tombol agar pemain bisa melewati tutorial, dengan **TextMeshPro - Text (UI)**.
+
+    `Skip Tutorial` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Canvas` > `TutorialManager` > `**SkipTutorial()**`
+
+Jangan lupa untuk mengisi variable di `TutorialManager.cs` yang ada di **Canvas**.
+- Tutorial Anim : `Tutorial Tab (Animator)`
+- Tutorial Text : `Tutorial Text (TextMeshProUGUI)`
+- Skip Tutorial : `Skip Tutorial (Button)`
+- Skip Text : `Skip Text (TextMeshProUGUI)`
+
+14. **Loading Blocker** → Untuk yang terakhir, ini hanya sebuah panel yang menutupi semua input tombol. Buat panel melalui **Hierarchy → UI (Canvas) → Panel**, lalu tambah animasi **Fade In** dari animator yang sama dengan `TEMPLATE`. Masukkan panel ini dalam script `MainMenu.cs` di variable `Loading Blocker`.
+
+### Langkah 7.4 — Isi Variable Kosong
+1. `MainMenu.cs` :
+   - Show Password : `Show Sprite` → Masukkan sprite yang menunjukkan bahwa password itu kelihatan, misal gambar mata.
+   - Hide Password : `Hide Sprite` → Masukkan sprite yang menunjukkan bahwa password itu tersembunyi, misal gambar mata yang di silang.
+   - Transition Settings : `Fade` → Pilih transisi dari template yang ada.
+   - Base Link : `https://backend.com' → Masukkan link backend yang kamu punya. Pastikan ada [https://] di bagian awal. Untuk backend, akan diajarkan pembuatannya di [Tutorial 8](#-tutorial-8---pembuatan-backend).
+2. `TutorialManager.cs` :
+   - Tutorial States :
+| Index | Target Highlight | Tutorial Text | Shape | Follow Width | Follow Height | Progress After Scan | Skip Tutorial | Skip Text | Enabled On Skip | Disabled On Skip |
+|---------|---------|---------|---------|---------|---------|---------|---------|---------|---------|---------|
+| 0 | Tombol tutup popup Credit | Ups! Sepertinya kamu masih kurang Credit untuk memulai bermain! Mari kita dapatkan dulu. Tutup tab untuk mulai. | Square | ✅ | ✅ | ❌ | ❌ | - | - | - |
+| 1 | Tombol tutup tab | Tutup tab ini untuk melanjutkan. | Square | ✅ | ✅ | ❌ | ❌ | - | - | - |
+| 2 | Tombol Scan QR | Tekan tombol koin untuk memulai tab pemindaian QR! Di sinilah kamu akan mendapatkan Credit! | Circle | ✅ | ✅ | ❌ | ❌ | - | - | - |
+| 3 | Panel Scan QR | Pindai kode QR yang diperlukan untuk melanjutkan! Tidak tahu kode QR mana yang harus dipindai? Periksa di depan timbangan yang akan Anda gunakan! | Square | ✅ | ✅ | ✅ | ✅ | Saya belum punya kode QR. | Modern Scale Panel | QR Scan Panel |
+| 4 | Tombol Klaim Credit | Ini adalah timbangan yang terhubung dengan Anda. Setiap 100 gram pada timbangan akan mendapatkan satu Credit. Masukkan 100 gram sampah ke dalam timbangan, lalu klaim dengan menekan tombol ini! | Square | ✅ | ✅ | ❌ | ❌ | - | - | - |
+
+
+## 🌐 TUTORIAL 8 - PEMBUATAN BACKEND
+Backend diperlukan untuk mengirim dan menerima data dari timbangan. Untuk itu, kita perlu membuatnya menggunakan `Visual Studio Code`.
+
+1. Buat projek baru dengan **Node.js + Express**.
+2. Buat file baru bernama `server.js`.
+3. Install semua package ini melalui **Terminal** :
+
+```csharp
+npm install express mongoose bcrypt jsonwebtoken dotenv express-rate-limit firebase-admin
+```
+
+3. Tulis :
+
+```csharp
+const express = require("express");
+const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
+const rateLimit = require("express-rate-limit");
+const admin = require("firebase-admin");
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+});
+
+mongoose.connect(process.env.MONGO_URL);
+
+const loginLimiter =
+    rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: 20
+    });
+
+const User = mongoose.model("User", {
+    username: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
+
+    passwordHash: String,
+
+    firebaseUid: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
+
+    email: String,
+
+    credit: {
+        type: Number,
+        default: 0
+    }
+});
+
+const app = express();
+app.use(express.json());
+
+const scales = {};
+
+//Scale counting
+app.post("/scale/:id", (req, res) => {
+
+    const id = req.params.id;
+    const weight = Number(req.body.weight);
+
+    if (weight === 0) {
+        scales[id] = {
+            weight: 0,
+            deposited: false
+        };
+    }
+    else {
+        scales[id] = {
+            weight,
+            deposited:
+                scales[id]?.deposited ?? false
+        };
+    }
+
+    res.json({
+        success: true
+    });
+});
+
+app.get("/scale/:id", (req, res) => {
+
+    const id = req.params.id;
+
+    const scale = scales[id];
+
+    if (!scale) {
+        return res.status(404).json({
+            message: "Scale not found"
+        });
+    }
+
+    res.json({
+        scale: id,
+        weight: scale.weight,
+        deposited: scale.deposited
+    });
+});
+
+app.post("/deposit", auth, async (req, res) => {
+    try {
+
+        const scaleId = req.body.scaleId;
+
+        const scale = scales[scaleId];
+
+        if (!scale) {
+            return res.status(404).json({
+                message: "Scale not found"
+            });
+        }
+
+        if (scale.deposited) {
+            return res.status(400).json({
+                message: "Already deposited"
+            });
+        }
+
+        if (scale.weight < 100) {
+            return res.status(400).json({
+                message: "Not enough weight"
+            });
+        }
+
+        const credit =
+            Math.floor(scale.weight / 100);
+
+        const user =
+            await User.findById(
+                req.user.userId
+            );
+
+        user.credit += credit;
+
+        await user.save();
+
+        scale.deposited = true;
+
+        res.json({
+            earned: credit,
+            totalCredit: user.credit
+        });
+    } 
+    catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            message: "Server error"
+        });
+    }
+});
+
+//Account creation
+app.post("/register", async (req, res) => {
+
+    if (
+        !req.body.username ||
+        req.body.username.length < 3
+    ) {
+        return res.status(400).json({
+            message:
+                "Username too short"
+        });
+    }
+
+    if (
+        !req.body.password ||
+        req.body.password.length < 6
+    ) {
+        return res.status(400).json({
+            message:
+                "Password too short"
+        });
+    }
+
+    const existing =
+        await User.findOne({
+            username: req.body.username
+        });
+
+    if (existing) {
+        return res
+            .status(400)
+            .json({
+                message: "Username taken"
+            });
+    }
+
+    const passwordHash =
+        await bcrypt.hash(
+            req.body.password,
+            10
+        );
+
+    const user = await User.create({
+        username: req.body.username,
+        passwordHash
+    });
+
+    const token = jwt.sign(
+        {
+            userId: user._id,
+            username: user.username
+        },
+        process.env.JWT_SECRET,
+        {
+            expiresIn: "7d"
+        }
+    );
+
+    res.json({ token });
+});
+
+app.post("/login", loginLimiter, async (req, res) => {
+    try {
+
+        const user = await User.findOne({
+            username: req.body.username
+        });
+
+        if (
+            !user ||
+            !(await bcrypt.compare(
+                req.body.password,
+                user.passwordHash
+            ))
+        ) {
+            return res.status(401)
+                .send("Invalid login");
+        }
+
+        const token = jwt.sign(
+            {
+                userId: user._id,
+                username: user.username
+            },
+            process.env.JWT_SECRET,
+            {
+                expiresIn: "7d"
+            }
+        );
+
+        res.json({ token });
+
+    } catch (err) {
+
+        console.error(err);
+
+        res.status(500).json({
+            message: "Server error"
+        });
+
+    }
+});
+function auth(req, res, next)
+{
+
+    const header =
+        req.headers.authorization;
+
+    if (!header)
+        return res.sendStatus(401);
+
+    const token =
+        header.replace(
+            "Bearer ",
+            ""
+        );
+
+    try {
+
+        req.user =
+            jwt.verify(
+                token,
+                process.env.JWT_SECRET
+            );
+
+        next();
+
+    } catch {
+
+        return res.sendStatus(401);
+
+    }
+}
+
+app.get("/profile", auth, async (req, res) => {
+
+    try {
+
+        const user =
+            await User.findById(req.user.userId);
+
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found"
+            });
+        }
+
+        // If we reach here, token is valid (auth already passed)
+        res.json({
+            valid: true,
+            username: user.username,
+            credit: user.credit
+        });
+
+    } catch (err) {
+
+        console.error(err);
+
+        res.status(500).json({
+            message: "Server error"
+        });
+
+    }
+
+});
+
+//firebase account
+app.post(
+    "/firebase-login",
+    async (req, res) => {
+        try {
+            const { firebaseToken } =
+                req.body;
+
+            const decoded =
+                await admin
+                    .auth()
+                    .verifyIdToken(
+                        firebaseToken
+                    );
+
+
+            const uid =
+                decoded.uid;
+
+            const email =
+                decoded.email;
+
+            const username =
+                decoded.name ||
+                email.split("@")[0];
+
+            let user =
+                await User.findOne({
+                    firebaseUid: uid
+                });
+
+            if (!user) {
+                user =
+                    await User.create({
+                        firebaseUid: uid,
+                        email,
+                        username,
+                        credit: 0
+                    });
+            }
+
+            const jwtToken =
+                jwt.sign(
+                    {
+                        userId: user._id
+                    },
+                    process.env.JWT_SECRET
+                );
+
+            res.json({
+                token: jwtToken
+            });
+        }
+        catch (error) {
+            console.error("Firebase login error:");
+            console.error(error);
+
+            res.status(401).json({
+                message: error.message
+            });
+        }
+    });
+
+app.post("/payment", auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        // Not enough credit
+        if (user.credit < 5) {
+            return res.status(400).json({
+                success: false,
+                message: "Not enough credit",
+                remaining: user.credit
+            });
+        }
+
+        user.credit -= 5;
+        await user.save();
+
+        return res.json({
+            success: true,
+            remaining: user.credit
+        });
+
+    } catch (err) {
+        console.error(err);
+
+        return res.status(500).json({
+            success: false,
+            message: "Server error"
+        });
+    }
+});
+
+app.listen(3000, () => {
+    console.log("Server running");
+});
+```
+
+| Nama Endpoint | Parameters | Penjelasan |
+| ------------- | ---------- | ---------- |
+| `POST /scale/:id` | **URL Param:** `id`<br>**Body:** `weight` | Mencatat atau memperbarui berat objek pada timbangan tertentu secara *real-time*. Jika beratnya 0, status timbangan di-reset (belum didepositkan). |
+| `GET /scale/:id` | **URL Param:** `id` | Mengambil data kondisi timbangan saat ini berdasarkan ID-nya, termasuk informasi berat terbaru dan apakah berat tersebut sudah diklaim/didepositkan. |
+| `POST /deposit` | **Header:** `Authorization` (JWT)<br>**Body:** `scaleId` | Memungkinkan pengguna terautentikasi untuk mengonversi berat yang ada di timbangan menjadi saldo kredit akun mereka (setiap 100 unit berat = 1 kredit), lalu menandai timbangan tersebut sudah diklaim (`deposited: true`). |
+| `POST /register` | **Body:** `username`, `password` | Mendaftarkan pengguna baru dengan melakukan validasi panjang input, memastikan *username* belum terpakai, melakukan *hashing* password, menyimpannya ke database MongoDB, dan langsung mengembalikan JWT token. |
+| `POST /login` | **Body:** `username`, `password` | Memverifikasi kredensial pengguna lokal menggunakan `bcrypt`. Jika cocok, *endpoint* ini akan mengembalikan JWT token untuk akses sesi. Dilindungi oleh `loginLimiter` untuk mencegah serangan *brute-force*. |
+| `auth` | **Header:** `Authorization` (JWT) | Fungsi perantara *(middleware)* untuk mengamankan *endpoint*. Ia memeriksa dan memverifikasi keaslian JWT token yang dikirim di header. Jika valid, data pengguna disimpan ke `req.user` dan akses dilanjutkan; jika tidak, ia langsung menolak akses dengan status 401. |
+| `GET /profile` | **Header:** `Authorization` (JWT) | Mengambil informasi profil dari pengguna yang sedang login (seperti *username* dan total saldo kredit) setelah lolos verifikasi *middleware* `auth`. |
+| `POST /firebase-login` | **Body:** `firebaseToken` | Mengautentikasi pengguna menggunakan pihak ketiga melalui Firebase. Server memverifikasi token Firebase tersebut, lalu otomatis mendaftarkan pengguna baru ke MongoDB jika akun belum ada, kemudian mengembalikan JWT token lokal. |
+| `POST /payment` | **Header:** `Authorization` (JWT) | Memproses transaksi pembayaran internal dengan memotong saldo kredit milik pengguna sebanyak 5 unit, selama saldo pengguna mencukupi. |
+
+4. Di foldernya, buat file dengan nama `.env`. Lalu, buka dengan **Notepad** atau aplikasi tulis lain.
+5. Tulis :
+
+```csharp
+MONGO_URL=XXX
+JWT_SECRET=XXX
+FIREBASE_SERVICE_ACCOUNT=XXX
+```
+
+6. Isi variable yang kosong sesuai dengan projek-mu, pastikan untuk menjaga file ini, dan tidak upload kemanapun.
+   - MONGO_URL : Bisa ditemukan di website [cloud.mongodb.com/](cloud.mongodb.com). Buat akun, cluster baru, lalu connect. Kamu akan mendapat semacam teks, lalu masukkan ke `.env` ini.
+   - JWT_SECRET : Ini digunakan untuk mengacak password untuk pengguna aplikasi-mu. Buat sepanjang mungkin dan seacak mungkin. Pastikan tidak ada yang tahu teks ini.
+   - FIREBASE_SERVICE_ACCOUNT : Ini adalah `google-service.json` yang dibuat di tutorial sebelumnya. Buka file tersebut, copy seluruh teksnya, lalu masukkan ke `.env`. Pastikan teks muncul dalam satu baris, apabila ada linebreak, akan muncul error di console.
+  
+7. Di Terminal, jalankan :
+
+```csharp
+node server.js
+```
+
+8. Backend-mu sekarang sudah jalan secara lokal!
+9. Untuk mencoba sistem backend tanpa timbangan, gunakan [**Postman**](www.postman.com).
+
+## 📷 TUTORIAL 9 - PEMBUATAN KODE QR
+Sebelum memulai testing, pemain harus memiliki Credit. Dan, cara untuk mendapat Credit adalah untuk mengakses timbangan.
+1. Pastikan Anda tahu apa ID timbangan yang ingin diakses. Contohnya seperti "TimbanganID1". Apabila masih menggunakan [**Postman**](www.postman.com), buat ID sendiri lalu sambungkan melalui **Postman**.
+2. Pergi ke [QR Code Dynamic](https://qrcodedynamic.com/qr/text) lalu generate kode QR yang isinya hanya ID itu saja.
+3. Dalam game, coba scan kode QR tersebut. Apabila gagal, timbangan itu belum disambungkan atau sudah di ambil Creditnya sebelumnya.
+4. Di **Postman**, masukkan :
+
+```csharp
+POST https://backend.com/scale/{SCALEID}
+```
+
+Pastikan `SCALEID` diganti dengan ID yang ingin disambungkan.
+
+5. Klik `Body`, lalu `raw`, tulis berikut :
+
+```csharp
+{
+    "weight": 500
+}
+```
+
+Apabila ada yang mengganti angka dari suatu ID, maka timbangan itu akan selamanya tersambung. Jadi, jika kita mengisi 500 gram di `TimbanganID1`, angka tersebut akan tetap 500 gram di permainan.
+
+5. Setiap ada orang yang selesai ambil Credit dari timbangan, pastikan timbangan tersebut harus dihilangkan beratnya, seperti `"weight": 0`. Hal ini agar tidak ada pemain yang menggunakan berat yang sama, sehingga bisa berulang-ulang mendapat Credit.
+
+## 🔧 TUTORIAL 10 - TESTING GAME
+Setelah membuat backend dan kode QR, sudah saatnya untuk testing game.
+
+-> Urutan memainkan game :
+1. Pergi ke scene `MainMenu`, lalu pencet 🞂 Play.
+2. Diawali dari klik `Play`, lalu pilih salah satu mode permainan.
+3. Akan ada tutorial yang muncul, ikutin alurnya hingga scan kode QR.
+4. Scan kode QR yang sudah kamu buat.
+5. Apabila berhasil, coba ambil hasilnya di game.
+6. Jika Credit menambah, coba memainkan "Congklak".
+7. Tes aturan dan mekanik.
+8. Jika sudah selesai, tes fitur-fitur lain, seperti Settings, Turbo Mode, dan Tombol-tombol lain.
+
+## 🎉 AKHIR TUTORIAL
+Selamat! Anda telah mencapai akhir dari tutorial ini. Tutorial ini menggunakan Unity 6.3 LTS (6000.3.8f1).
