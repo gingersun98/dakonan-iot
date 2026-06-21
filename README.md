@@ -1946,12 +1946,12 @@ public class ObjectPooling : MonoBehaviour
 4. Berikan masing-masing tombol `Main Menu` dan `Restart` fungsi dengan `GameManager.cs`. Dalam OnClick(), masukkan :
    
    `Main Menu` :
-   - `Board` > `GameManager` > **PlaySFX("button")**
-   - `Board` > `GameManager` > **SceneTravel(0)**
+   - `Board` > `GameManager` > `**PlaySFX("button")**`
+   - `Board` > `GameManager` > `**SceneTravel(0)**`
      
    `Restart` :
-   - `Board` > `GameManager` > **PlaySFX("button")**
-   - `Board` > `GameManager` > **StartGame()**
+   - `Board` > `GameManager` > `**PlaySFX("button")**`
+   - `Board` > `GameManager` > `**StartGame()**`
 
 ## ✊ TUTORIAL 5 - PEMBUATAN BATU GUNTING KERTAS - MINIGAME
 
@@ -2154,7 +2154,7 @@ Dengan selesainya sistem gameplay dalam game ini, sekarang kita lanjut dalam pem
 
 ### Langkah 6.1 — Planning Pembuatan
 Target kita dalam tutorial ini adalah :
-- **Main Panel** → Berisi tombol Play, Settings, Credit, Exit, serta details tentang akun yang kita pakai.
+- **Main Screen** → Berisi tombol Play, Settings, Credit, Exit, serta details tentang akun yang kita pakai.
 - **Account Panels** → Berisi tombol untuk Sign In dengan Google, serta juga Sign In secara Guest, namun ini opsional karena hanya untuk Editor. Jika ingin Sign In secara Guest, kita juga membuat **Register** dan **Login** Tab.
 - **Quit Panel** → Berisi konfirmasi untuk keluar dari game.
 - **Settings Panel** → Berisi dua **Slider** yang digunakan untuk mengkontrol volume, serta tombol Back untuk menutupnya.
@@ -2170,72 +2170,2352 @@ Scene `Main Menu` memperlukan beberapa script untuk bisa jalan. Berikut adalah y
 
 1. `MainMenu.cs`
 ```csharp
+using EasyTransition;
+using Firebase.Auth;
+using Google;
+using Proyecto26;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using TMPro;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
+public class MainMenu : MonoBehaviour
+{
+    public static MainMenu Instance { get; private set; }
+
+    #region UI References
+
+    [Header("Account UI")]
+    public GameObject accountDetail;
+    public TextMeshProUGUI accountName;
+    public TextMeshProUGUI[] everyCurrencyShowcase;
+
+    [Header("Authentication Panels")]
+    public Animator registerTab;
+    public Animator loginTab;
+    public Animator signInPanel;
+
+    [Header("Authentication Inputs")]
+    public TMP_InputField registerUsernameField;
+    public TMP_InputField registerPasswordField;
+    public TMP_InputField loginUsernameField;
+    public TMP_InputField loginPasswordField;
+
+    [Header("Password Visibility")]
+    public Image registerPasswordShow;
+    public Image loginPasswordShow;
+    public Sprite showPassword;
+    public Sprite hidePassword;
+
+    [Header("Notifications & Popups")]
+    public Animator notificationQRAppear;
+    public Animator cameraQRMenu;
+    public ScalePanel modernScalePanel;
+
+    [Header("Loading & Transitions")]
+    public GameObject loadingBlocker;
+    public TransitionSettings transitionSettings;
+
+    #endregion
+
+    #region Runtime Data
+
+    [Header("Runtime Data")]
+    [HideInInspector] public int storedBalance;
+
+    #endregion
+
+    #region API Configuration
+
+    [Header("Base URL")]
+	// Ganti ini sesuai dengan link backend-mu.
+    public string baseLink = "https://backend.com";
+
+    [Header("Authentication Endpoints")]
+    public string registerEndpoint = "/register";
+    public string loginEndpoint = "/login";
+    public string firebaseEndpoint = "/firebase-login";
+
+    [Header("User Endpoints")]
+    public string profileEndpoint = "/profile";
+
+    [Header("Scale Endpoints")]
+    public string getScaleEndpoint = "/scale/";
+
+    [Header("Payment Endpoints")]
+    public string depositEndpoint = "/deposit";
+    public string paymentEndpoint = "/payment";
+
+    #endregion
+
+    private void Awake()
+    {
+        Instance = this;
+    }
+
+
+    private IEnumerator Start()
+    {
+        SoundManager.instance.PlayMusic("music");
+        while (
+            FirebaseManager.Instance == null ||
+            !FirebaseManager.Instance.IsReady)
+        {
+            yield return null;
+        }
+
+        string token =
+            PlayerPrefs.GetString("token", "");
+
+        if (string.IsNullOrEmpty(token))
+        {
+            signInPanel.gameObject.SetActive(true);
+        }
+        else
+        {
+            GetProfile();
+        }
+    }
+
+    public void PlayGame(int gameMode)
+    {
+        string token = PlayerPrefs.GetString("token", "");
+        loadingBlocker.SetActive(true);
+        var request = new RequestHelper
+        {
+            Uri = baseLink + "/payment",
+            Method = "POST",
+            Headers = new Dictionary<string, string>
+        {
+            { "Authorization", "Bearer " + token }
+        }
+        };
+
+        RestClient.Request<PaymentResponse>(request)
+            .Then(response =>
+            {
+                Debug.Log("Success: " + response.success);
+                Debug.Log("Remaining: " + response.remaining);
+                UpdateUI(null, response.remaining);
+                loadingBlocker.SetActive(false);
+                switch (gameMode)
+                {
+                    case 0: TravelScene(1); break;
+                    default: print("Not implemented yet, stay tuned!"); break;
+                }
+            })
+            .Catch(error =>
+            {
+                loadingBlocker.SetActive(false);
+                Debug.LogError(error);
+            });
+    }
+
+    public void TravelScene(int index)
+    {
+        TransitionManager.Instance().Transition(index, transitionSettings, 0);
+    }
+
+    public void QuitGame()
+    {
+        Application.Quit();
+    }
+
+    public void Register()
+    {
+        string username = registerUsernameField.text.Trim();
+        string password = registerPasswordField.text.Trim();
+        if (!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
+        {
+            loadingBlocker.SetActive(true);
+            RestClient.Post<LoginResponse>(baseLink + registerEndpoint, new LoginRequest
+            {
+                username = username,
+                password = password
+            }).Then(response =>
+            {
+                loadingBlocker.SetActive(false);
+                if (registerTab.gameObject.activeSelf)
+                registerTab.Play("PanelDisappear", 0, 0f);
+                if (loginTab.gameObject.activeSelf)
+                loginTab.Play("PanelDisappear", 0, 0f);
+                if (signInPanel.gameObject.activeSelf)
+                signInPanel.Play("PanelDisappear", 0, 0f);
+
+                PlayerPrefs.SetString("token", response.token);
+                PlayerPrefs.SetInt("HasMadeAccount", 1);
+                PlayerPrefs.Save();
+                print("Succesful registered an account : " + username);
+                accountDetail.SetActive(true);
+                accountName.text = username;
+                UpdateUI(username, 0);
+            }).Catch(error =>
+            {
+                loadingBlocker.SetActive(false);
+                Debug.LogError("Failure in registering a new account : " + error);
+            });
+        }
+    }
+
+    public void Login()
+    {
+        string username = loginUsernameField.text.Trim();
+
+        string password = loginPasswordField.text.Trim();
+
+        if (!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
+        {
+            loadingBlocker.SetActive(true);
+
+            RestClient.Post<LoginResponse>(baseLink + loginEndpoint,
+
+                new LoginRequest
+                {
+                    username = username,
+                    password = password
+                }
+
+            ).Then(response =>
+            {
+                loadingBlocker.SetActive(false);
+                if (registerTab.gameObject.activeSelf)
+                    registerTab.Play("PanelDisappear", 0, 0f);
+                if (loginTab.gameObject.activeSelf)
+                    loginTab.Play("PanelDisappear", 0, 0f);
+                if (signInPanel.gameObject.activeSelf)
+                    signInPanel.Play("PanelDisappear", 0, 0f);
+
+                Debug.Log("Successfully logged in with Token: " + response.token);
+                PlayerPrefs.SetInt("HasMadeAccount", 1);
+                PlayerPrefs.SetString("token", response.token);
+                PlayerPrefs.Save();
+                accountDetail.SetActive(true);
+                accountName.text = username;
+                GetProfile();
+
+            }).Catch(error =>
+            {
+                loadingBlocker.SetActive(false);
+
+                Debug.LogError("Failure to log in : " + error);
+            });
+        }
+    }
+
+    public void LogOut()
+    {
+        PlayerPrefs.DeleteKey("token");
+        PlayerPrefs.Save();
+        ClearAllInputs();
+        signInPanel.gameObject.SetActive(true);
+        accountDetail.gameObject.SetActive(false);
+    }
+    public void ClearAllInputs()
+    {
+        loginPasswordField.text = "";
+        loginUsernameField.text = "";
+        registerPasswordField.text = "";
+        registerUsernameField.text = "";
+        loginPasswordField.contentType = TMP_InputField.ContentType.Password;
+        registerPasswordField.contentType = TMP_InputField.ContentType.Password;
+        loginPasswordField.ForceLabelUpdate();
+        registerPasswordField.ForceLabelUpdate();
+    }
+
+    public void GetProfile()
+    {
+        string token = PlayerPrefs.GetString("token", "");
+
+        if (string.IsNullOrEmpty(token))
+        {
+            Debug.Log("No token found");
+            return;
+        }
+        loadingBlocker.SetActive(true);
+
+        var request = new RequestHelper
+        {
+            Uri = baseLink + profileEndpoint,
+            Method = "GET",
+            Headers = new System.Collections.Generic.Dictionary<string, string>
+            {
+                { "Authorization", "Bearer " + token }
+            }
+        };
+
+        RestClient.Get<TokenResponse>(request)
+            .Then(response =>
+            {
+                loadingBlocker.SetActive(false);
+
+                Debug.Log("Username: " + response.username);
+                Debug.Log("Credit: " + response.credit);
+
+                accountDetail.SetActive(true);
+                accountName.text = response.username;
+                UpdateUI(response.username, response.credit);
+                storedBalance = response.credit;
+            })
+            .Catch(error =>
+            {
+                loadingBlocker.SetActive(false);
+
+                Debug.LogError("Profile error: " + error);
+
+                // IMPORTANT: token invalid or expired
+                PlayerPrefs.DeleteKey("token");
+                accountDetail.SetActive(false);
+                UpdateUI(null, 0);
+            });
+    }
+
+    public void ShowPassword()
+    {
+        if (registerTab.gameObject.activeSelf)
+        {
+            if (registerPasswordField.contentType == TMP_InputField.ContentType.Password)
+            {
+                registerPasswordField.contentType = TMP_InputField.ContentType.Standard;
+                registerPasswordShow.sprite = showPassword;
+            }
+            else
+            {
+                registerPasswordField.contentType = TMP_InputField.ContentType.Password;
+                registerPasswordShow.sprite = hidePassword;
+            }
+            registerPasswordField.ForceLabelUpdate();
+        }
+        else
+        {
+            if (loginPasswordField.contentType == TMP_InputField.ContentType.Password)
+            {
+                loginPasswordField.contentType = TMP_InputField.ContentType.Standard;
+                loginPasswordShow.sprite = showPassword;
+            }
+            else
+            {
+                loginPasswordField.contentType = TMP_InputField.ContentType.Password;
+                loginPasswordShow.sprite = hidePassword;
+            }
+           loginPasswordField.ForceLabelUpdate();
+        }
+    }
+
+    public void CheckScale(string scaleID)
+    {
+        loadingBlocker.SetActive(true);
+        RestClient.Get<ScaleResponse>(baseLink + getScaleEndpoint + scaleID).Then(response =>
+        {
+            loadingBlocker.SetActive(false);
+            if (response.deposited)
+            {
+                Debug.LogError("Failure to get scale with ID \"" + scaleID + "\" : This scale is already deposited! Take off the weight first!");
+                modernScalePanel.storedScale = "";
+                notificationQRAppear.gameObject.SetActive(true);
+                notificationQRAppear.Play("TurnAppear", 0, 0f);
+                return;
+            }
+            cameraQRMenu.Play("PanelDisappear", 0, 0f);
+            modernScalePanel.gameObject.SetActive(true);
+            modernScalePanel.Initialize(scaleID, storedBalance);
+        }).Catch(error =>
+        {
+            loadingBlocker.SetActive(false);
+            Debug.LogError("Failure to get scale with ID \"" + scaleID + "\" : " + error);
+            modernScalePanel.storedScale = "";
+            notificationQRAppear.gameObject.SetActive(true);
+            notificationQRAppear.Play("TurnAppear", 0, 0f);
+            QRScanning.Instance.Initialize();
+        });
+    }
+
+    public void DepositScale()
+    {
+        if (string.IsNullOrEmpty(modernScalePanel.storedScale) && !modernScalePanel.randomizedValue)
+            return;
+        if (modernScalePanel.randomizedValue)
+        {
+            StopScaleConnection();
+            return;
+        }
+        loadingBlocker.SetActive(true);
+        string token = PlayerPrefs.GetString("token");
+
+        RestClient.Request<DepositResponse>(
+            new RequestHelper
+            {
+                Uri = baseLink + "/deposit",
+                Method = "POST",
+                Body = new DepositRequest
+                {
+                    scaleId = modernScalePanel.storedScale
+                },
+                Headers = new System.Collections.Generic.Dictionary<string, string>
+                {
+            {
+                "Authorization",
+                "Bearer " + PlayerPrefs.GetString("token")
+            }
+                }
+            }
+        )
+        .Then(response =>
+        {
+            UpdateUI(null, response.totalCredit);
+            storedBalance = response.totalCredit;
+
+            StopScaleConnection();
+            loadingBlocker.SetActive(false);
+        })
+        .Catch(error =>
+        {
+            Debug.LogError(error);
+            loadingBlocker.SetActive(false);
+        });
+    }
+
+    public void StopScaleConnection()
+    {
+        modernScalePanel.storedScale = "";
+        modernScalePanel.selfAnim.Play("PanelDisappear", 0, 0f);
+        cameraQRMenu.gameObject.SetActive(true);
+    }
+
+    public void SignInGoogle()
+    {
+        if (!FirebaseManager.Instance.IsReady)
+        {
+            Debug.LogError("Firebase not ready");
+            return;
+        }
+        if (Application.platform != RuntimePlatform.Android)
+        {
+            Debug.Log("Google Sign-In only works on Android.");
+            if (PlayerPrefs.GetInt("HasMadeAccount", 0) == 0)
+            {
+                registerTab.gameObject.SetActive(true);
+            }
+            else
+            {
+                loginTab.gameObject.SetActive(true);
+            }
+            signInPanel.Play("PanelDisappear", 0, 0f);
+            return;
+        }
+        Debug.Log("1. SignInGoogle called");
+        loadingBlocker.SetActive(true);
+        GoogleSignIn.DefaultInstance
+            .SignIn()
+            .ContinueWith(OnGoogleLogin);
+    }
+
+    void OnGoogleLogin(Task<GoogleSignInUser> task)
+    {
+        Debug.Log("2. OnGoogleLogin reached");
+
+        if (task.IsFaulted)
+        {
+            Debug.LogError("Google Sign-In FAILED");
+            Debug.LogException(task.Exception);
+            loadingBlocker.SetActive(false);
+            return;
+        }
+
+        if (task.IsCanceled)
+        {
+            Debug.Log("Google Sign-In CANCELLED");
+            loadingBlocker.SetActive(false);
+            return;
+        }
+
+        if (task.Result == null)
+        {
+            Debug.LogError("GoogleSignInUser is NULL");
+            loadingBlocker.SetActive(false);
+            return;
+        }
+
+        Debug.Log("Google Sign-In SUCCESS");
+
+        string idToken = task.Result.IdToken;
+
+        if (string.IsNullOrEmpty(idToken))
+        {
+            Debug.LogError("ID TOKEN IS NULL");
+            loadingBlocker.SetActive(false);
+            return;
+        }
+
+        Debug.Log("ID TOKEN OK");
+
+        var credential =
+            GoogleAuthProvider.GetCredential(
+                idToken,
+                null
+            );
+
+        FirebaseManager.Instance.Auth
+            .SignInWithCredentialAsync(credential)
+            .ContinueWith(OnFirebaseAuth);
+    }
+
+    void OnFirebaseAuth(Task<FirebaseUser> task)
+    {
+        Debug.Log("3. OnFirebaseAuth reached");
+
+        if (task.IsFaulted)
+        {
+            Debug.LogError("Firebase Auth FAILED");
+            Debug.LogException(task.Exception);
+            loadingBlocker.SetActive(false);
+            return;
+        }
+
+        if (task.IsCanceled)
+        {
+            Debug.Log("Firebase Auth CANCELLED");
+            loadingBlocker.SetActive(false);
+            return;
+        }
+
+        FirebaseUser user = task.Result;
+
+        if (user == null)
+        {
+            Debug.LogError("FirebaseUser NULL");
+            loadingBlocker.SetActive(false);
+            return;
+        }
+
+        Debug.Log("Firebase Auth SUCCESS");
+        Debug.Log("UID: " + user.UserId);
+        Debug.Log("Email: " + user.Email);
+
+        user.TokenAsync(false)
+            .ContinueWith(OnFirebaseToken);
+    }
+
+    void OnFirebaseToken(Task<string> task)
+    {
+        Debug.Log("4. OnFirebaseToken reached");
+
+        if (task.IsFaulted)
+        {
+            Debug.LogError("Token FAILED");
+            Debug.LogException(task.Exception);
+            loadingBlocker.SetActive(false);
+            return;
+        }
+
+        string firebaseToken = task.Result;
+
+        Debug.Log("TOKEN RECEIVED: " + firebaseToken.Substring(0, 20) + "...");
+
+        RestClient.Post<LoginResponse>(
+            baseLink + firebaseEndpoint,
+            new FirebaseLoginRequest
+            {
+                firebaseToken = firebaseToken
+            })
+        .Then(response =>
+        {
+            Debug.Log("5. BACKEND LOGIN SUCCESS");
+
+            PlayerPrefs.SetString("token", response.token);
+            PlayerPrefs.Save();
+
+            signInPanel.Play("PanelDisappear", 0, 0f);
+
+            GetProfile();
+            loadingBlocker.SetActive(false);
+        })
+        .Catch(error =>
+        {
+            loadingBlocker.SetActive(false);
+            Debug.LogError("BACKEND ERROR: " + error);
+        });
+    }
+
+    public void UpdateUI(string username = null, int credit = 0)
+    {
+        if (username != null)
+        {
+            accountName.text = username;
+        }
+        foreach (TextMeshProUGUI wallet in everyCurrencyShowcase)
+        {
+            wallet.text = "<sprite index=0> " + credit.ToString("N0");
+        }
+    }
+
+    public void PlaySFX(string sfx)
+    {
+        SoundManager.instance.Play(sfx);
+    }
+}
+
+[System.Serializable]
+public class LoginRequest
+{
+    public string username;
+    public string password;
+}
+
+[System.Serializable]
+public class LoginResponse
+{
+    public string token;
+}
+
+[System.Serializable]
+public class TokenResponse
+{
+    public bool valid;
+    public string username;
+    public int credit;
+}
+
+[System.Serializable]
+public class ScaleResponse
+{
+    public string scale;
+    public int weight;
+    public bool deposited;
+}
+
+[System.Serializable]
+public class DepositRequest
+{
+    public string scaleId;
+}
+
+[System.Serializable]
+public class DepositResponse
+{
+    public int earned;
+    public int totalCredit;
+}
+
+[System.Serializable]
+public class FirebaseLoginRequest
+{
+    public string firebaseToken;
+}
+
+[System.Serializable]
+public class PaymentResponse
+{
+    public bool success;
+    public int remaining;
+}
 ```
 
-| Nama Function | Parameters | Penjelasan |
-|---------------|------------|------------|
-| `Initiate` | ❌ | Menyiapkan permainan "Batu Gunting Kertas" agar bisa dimainkan. |
+| Nama Function         | Parameters                                 | Penjelasan                                                                                                                             |
+| --------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `Awake`               | ❌                                          | Menginisialisasi singleton `MainMenu` dengan mengisi `Instance`.                                                                       |
+| `Start`               | ❌                                          | Memutar musik, menunggu Firebase siap, lalu memeriksa token login dan menampilkan panel login atau mengambil profil pengguna.          |
+| `PlayGame`            | `int gameMode`                             | Mengirim request pembayaran sebelum bermain, mengurangi saldo pengguna, memperbarui UI, lalu berpindah ke mode permainan yang dipilih. |
+| `TravelScene`         | `int index`                                | Berpindah ke scene tertentu menggunakan sistem transisi.                                                                               |
+| `QuitGame`            | ❌                                          | Menutup aplikasi permainan.                                                                                                            |
+| `Register`            | ❌                                          | Mendaftarkan akun baru menggunakan username dan password yang diinput pengguna.                                                        |
+| `Login`               | ❌                                          | Melakukan login menggunakan username dan password, lalu menyimpan token dan mengambil data profil.                                     |
+| `LogOut`              | ❌                                          | Menghapus token login, membersihkan input, dan menampilkan kembali panel login.                                                        |
+| `ClearAllInputs`      | ❌                                          | Mengosongkan semua field login/register dan mengembalikan mode password menjadi tersembunyi.                                           |
+| `GetProfile`          | ❌                                          | Mengambil data profil pengguna dari server berdasarkan token yang tersimpan.                                                           |
+| `ShowPassword`        | ❌                                          | Menampilkan atau menyembunyikan password pada form login atau register.                                                                |
+| `CheckScale`          | `string scaleID`                           | Memeriksa status timbangan berdasarkan ID QR yang dipindai dan membuka panel timbangan jika valid.                                     |
+| `DepositScale`        | ❌                                          | Mengirim data timbangan ke server untuk melakukan deposit dan menambahkan saldo pengguna.                                              |
+| `StopScaleConnection` | ❌                                          | Menghentikan koneksi timbangan, menutup panel timbangan, dan kembali ke menu kamera QR.                                                |
+| `SignInGoogle`        | ❌                                          | Memulai proses login menggunakan akun Google dan Firebase Authentication.                                                              |
+| `OnGoogleLogin`       | `Task<GoogleSignInUser> task`              | Menangani hasil login Google dan melanjutkan autentikasi ke Firebase.                                                                  |
+| `OnFirebaseAuth`      | `Task<FirebaseUser> task`                  | Menangani hasil autentikasi Firebase dan meminta Firebase Token.                                                                       |
+| `OnFirebaseToken`     | `Task<string> task`                        | Mengirim Firebase Token ke backend untuk mendapatkan token login aplikasi.                                                             |
+| `UpdateUI`            | `string username = null`, `int credit = 0` | Memperbarui nama akun dan tampilan saldo pada seluruh UI wallet.                                                                       |
+| `PlaySFX`             | `string sfx`                               | Memutar efek suara berdasarkan nama audio yang diberikan.                                                                              |
+
+| Nama Class             | Parameters / Fields            | Penjelasan                                                          |
+| ---------------------- | ------------------------------ | ------------------------------------------------------------------- |
+| `LoginRequest`         | `username`, `password`         | Data yang dikirim saat registrasi atau login.                       |
+| `LoginResponse`        | `token`                        | Data token yang diterima setelah login berhasil.                    |
+| `TokenResponse`        | `valid`, `username`, `credit`  | Data profil pengguna yang diterima dari server.                     |
+| `ScaleResponse`        | `scale`, `weight`, `deposited` | Data timbangan yang diterima dari server.                           |
+| `DepositRequest`       | `scaleId`                      | Data yang dikirim saat melakukan deposit timbangan.                 |
+| `DepositResponse`      | `earned`, `totalCredit`        | Hasil deposit berupa kredit yang diperoleh dan total saldo terbaru. |
+| `FirebaseLoginRequest` | `firebaseToken`                | Data token Firebase yang dikirim ke backend.                        |
+| `PaymentResponse`      | `success`, `remaining`         | Hasil pembayaran permainan dan sisa saldo pengguna.                 |
 
 2. `Settings.cs`
 ```csharp
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+public class Settings : MonoBehaviour
+{
+    [Header("Sliders - Music")]
+    public Slider musicSlider;
+    public TextMeshProUGUI musicDisplayText;
+
+    [Header("Sliders - SFX")]
+    public Slider SFXSlider;
+    public TextMeshProUGUI sfxDisplayText;
+
+    private void OnEnable()
+    {
+        musicSlider.SetValueWithoutNotify(PlayerPrefs.GetFloat("Music", 1));
+        SFXSlider.SetValueWithoutNotify(PlayerPrefs.GetFloat("SFX", 1));
+    }
+
+    public void SetVolume(bool isMusic)
+    {
+        if (isMusic)
+        {
+            PlayerPrefs.SetFloat("Music", musicSlider.value);
+            if (musicDisplayText != null)
+            musicDisplayText.text = ((int)(musicSlider.value * 100)).ToString();
+        } else
+        {
+            PlayerPrefs.SetFloat("SFX", SFXSlider.value);
+            if (sfxDisplayText != null)
+            sfxDisplayText.text = ((int)(SFXSlider.value * 100)).ToString();
+        }
+    }
+}
 
 ```
 
-| Nama Function | Parameters | Penjelasan |
-|---------------|------------|------------|
-| `Initiate` | ❌ | Menyiapkan permainan "Batu Gunting Kertas" agar bisa dimainkan. |
+| Nama Function | Parameters     | Penjelasan                                                                                                                                                                                                                   |
+| ------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OnEnable`    | ❌              | Dipanggil saat objek aktif. Mengambil nilai volume Music dan SFX dari `PlayerPrefs`, lalu mengatur posisi slider sesuai nilai yang tersimpan tanpa memicu event slider.                                                     |
+| `SetVolume`   | `bool isMusic` | Mengubah dan menyimpan nilai volume ke `PlayerPrefs`. Jika `isMusic` bernilai `true`, volume musik diperbarui; jika `false`, volume efek suara (SFX) diperbarui. Selain itu, teks persentase volume pada UI juga diperbarui. |
 
 3. `QRScanning.cs`
 ```csharp
+using Proyecto26;
+using QRCodeShareMain;
+using System.Collections;
+using UnityEngine;
+using UnityEngine.Android;
+using UnityEngine.UI;
 
+public class QRScanning : MonoBehaviour
+{
+    public static QRScanning Instance {  get; private set; }
+    public GameObject askForCameraButton;
+    public WebCamTexture camTexture;
+    public RawImage targetImage;
+    private float scanCooldown = 0f;
+    private Texture2D scanTexture;
+    Coroutine checkPermissionRoutine = null;
+    bool canScan;
+
+    private void Awake()
+    {
+        Instance = this;
+    }
+
+    private void OnEnable()
+    {
+        if (camTexture == null)
+        {
+            Initialize();
+        } else
+        {
+            camTexture.Play();
+            StartCoroutine(WaitForFreshFrames());
+            StartCoroutine(FixCameraOrientation());
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (camTexture != null)
+            camTexture.Stop();
+        if (checkPermissionRoutine != null) StopCoroutine(checkPermissionRoutine);
+    }
+
+    public void Initialize()
+    {
+        if (!Permission.HasUserAuthorizedPermission(Permission.Camera))
+        {
+            Permission.RequestUserPermission(Permission.Camera);
+            if (checkPermissionRoutine != null) StopCoroutine(checkPermissionRoutine);
+            checkPermissionRoutine = StartCoroutine(StartCamera());
+            return;
+        }
+
+        if (camTexture != null)
+        {
+            camTexture.Play();
+            StartCoroutine(WaitForFreshFrames());
+            StartCoroutine(FixCameraOrientation());
+            return;
+        }
+
+        WebCamDevice[] devices =
+            WebCamTexture.devices;
+
+        if (devices.Length == 0)
+        {
+            Debug.LogError("No camera found.");
+            return;
+        }
+
+#if UNITY_ANDROID || UNITY_IOS
+
+        bool foundRearCamera = false;
+
+        for (int i = 0; i < devices.Length; i++)
+        {
+            if (!devices[i].isFrontFacing)
+            {
+                camTexture =
+                    new WebCamTexture(
+                        devices[i].name);
+
+                foundRearCamera = true;
+                break;
+            }
+        }
+
+        if (!foundRearCamera)
+        {
+            camTexture =
+                new WebCamTexture(
+                    devices[0].name);
+        }
+
+#else
+
+camTexture =
+    new WebCamTexture(
+        devices[0].name);
+
+#endif
+
+        targetImage.texture = camTexture;
+        targetImage.material.mainTexture = camTexture;
+
+        camTexture.Play();
+        StartCoroutine(WaitForFreshFrames());
+        StartCoroutine(FixCameraOrientation());
+    }
+
+    IEnumerator WaitForFreshFrames()
+    {
+        canScan = false;
+
+        yield return new WaitForSeconds(1f);
+
+        canScan = true;
+    }
+
+    IEnumerator StartCamera()
+    {
+        while (!Permission.HasUserAuthorizedPermission(Permission.Camera))
+        {
+            yield return null;
+        }
+
+        WebCamDevice[] devices =
+            WebCamTexture.devices;
+
+        if (devices.Length == 0)
+        {
+            Debug.LogError("No camera found.");
+            yield break;
+        }
+
+    #if UNITY_ANDROID || UNITY_IOS
+
+        bool foundRearCamera = false;
+
+        for (int i = 0; i < devices.Length; i++)
+        {
+            if (!devices[i].isFrontFacing)
+            {
+                camTexture =
+                    new WebCamTexture(
+                        devices[i].name);
+
+                foundRearCamera = true;
+                break;
+            }
+        }
+
+        if (!foundRearCamera)
+        {
+            camTexture =
+                new WebCamTexture(
+                    devices[0].name);
+        }
+
+    #else
+
+    camTexture =
+        new WebCamTexture(
+            devices[0].name);
+
+    #endif
+
+        targetImage.texture = camTexture;
+        targetImage.material.mainTexture = camTexture;
+
+        camTexture.Play();
+        StartCoroutine(WaitForFreshFrames());
+        StartCoroutine(FixCameraOrientation());
+        checkPermissionRoutine = null;
+    }
+
+    public void AskForCamera()
+    {
+        if (!Permission.HasUserAuthorizedPermission(Permission.Camera))
+        {
+            Permission.RequestUserPermission(Permission.Camera);
+        }
+    }
+
+    IEnumerator FixCameraOrientation()
+    {
+        yield return new WaitForSeconds(0.2f);
+
+        if (camTexture == null)
+            yield break;
+        targetImage.rectTransform.localEulerAngles =
+            new Vector3(
+                0,
+                0,
+                -camTexture.videoRotationAngle
+            );
+
+        if (camTexture.videoVerticallyMirrored)
+        {
+            targetImage.rectTransform.localScale =
+                new Vector3(1, -1, 1);
+        }
+    }
+
+    void Update()
+    {
+        if (!canScan)
+            return;
+        if (MainMenu.Instance.loadingBlocker.activeSelf || MainMenu.Instance.modernScalePanel.gameObject.activeSelf)
+        {
+            if (camTexture != null && camTexture.isPlaying)
+                camTexture.Pause();
+            return;
+        } else
+        {
+            if (camTexture != null && !camTexture.isPlaying)
+            {
+                camTexture.Play();
+                StartCoroutine(WaitForFreshFrames());
+                StartCoroutine(FixCameraOrientation());
+            }
+        }
+        if (!Permission.HasUserAuthorizedPermission(Permission.Camera))
+        {
+            askForCameraButton.SetActive(true);
+            return;
+        }
+        askForCameraButton.SetActive(false);
+
+        if (camTexture == null || !camTexture.isPlaying)
+            return;
+
+        scanCooldown -= Time.deltaTime;
+
+        if (scanCooldown > 0)
+            return;
+
+        // scan every 0.5 seconds (prevents overload)
+        scanCooldown = 0.5f;
+
+        scanTexture = new Texture2D(
+            camTexture.width,
+            camTexture.height,
+            TextureFormat.RGBA32,
+            false
+        );
+
+        scanTexture.SetPixels32(
+            camTexture.GetPixels32()
+        );
+
+        scanTexture.Apply();
+
+        string result = QRCodeShare.ReadQRCodeImage(scanTexture);
+
+        if (!string.IsNullOrEmpty(result))
+        {
+            Debug.Log("QR FOUND: " + result);
+
+            OnQRDetected(result);
+        }
+    }
+
+    void OnQRDetected(string scaleId)
+    {
+        camTexture.Stop();
+        MainMenu.Instance.CheckScale(scaleId);
+    }
+}
 ```
 
-| Nama Function | Parameters | Penjelasan |
-|---------------|------------|------------|
-| `Initiate` | ❌ | Menyiapkan permainan "Batu Gunting Kertas" agar bisa dimainkan. |
+| Nama Function          | Parameters       | Penjelasan                                                                                                                                        |
+| ---------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Awake`                | ❌                | Menginisialisasi singleton `QRScanning` dengan mengisi `Instance`.                                                                                |
+| `OnEnable`             | ❌                | Dipanggil saat objek aktif. Memulai kamera jika belum ada, atau mengaktifkan kembali kamera yang sudah tersedia.                                  |
+| `OnDisable`            | ❌                | Menghentikan kamera dan coroutine pengecekan izin saat objek dinonaktifkan.                                                                       |
+| `Initialize`           | ❌                | Menginisialisasi kamera, meminta izin kamera jika diperlukan, memilih kamera belakang (mobile), lalu menampilkan hasil kamera ke UI.              |
+| `WaitForFreshFrames`   | ❌                | Memberikan jeda 1 detik sebelum proses pemindaian QR dimulai agar frame kamera sudah stabil.                                                      |
+| `StartCamera`          | ❌                | Menunggu hingga izin kamera diberikan, lalu menginisialisasi dan menjalankan kamera.                                                              |
+| `AskForCamera`         | ❌                | Meminta izin akses kamera kepada pengguna jika belum diberikan.                                                                                   |
+| `FixCameraOrientation` | ❌                | Menyesuaikan rotasi dan orientasi tampilan kamera agar sesuai dengan orientasi perangkat.                                                         |
+| `Update`               | ❌                | Dipanggil setiap frame. Mengelola status kamera, memeriksa izin kamera, mengambil gambar dari kamera, dan melakukan pemindaian QR secara berkala. |
+| `OnQRDetected`         | `string scaleId` | Dipanggil ketika QR Code berhasil dipindai. Menghentikan kamera dan mengirim ID timbangan ke `MainMenu` untuk diproses.                           |
 
 4. `ScalePanel.cs`
 ```csharp
+using Proyecto26;
+using TMPro;
+using UnityEngine;
+using static UnityEngine.Audio.ProcessorInstance;
+
+public class ScalePanel : MonoBehaviour
+{
+	public TextMeshProUGUI scaleAmount;
+
+	public TextMeshProUGUI creditAmount;
+
+	public TextMeshProUGUI oldBalance;
+
+	public TextMeshProUGUI newBalance;
+
+	public Animator selfAnim;
+	public Animator[] valueUpdate;
+
+	public bool randomizedValue;
+	[HideInInspector]
+	public string storedScale;
+
+	private int storedBalance;
+
+	private float refreshTimer;
+
+	private bool hasRefreshed;
+
+	public void Initialize(string scale, int lastBalance)
+	{
+		randomizedValue = false;
+		storedScale = scale;
+		storedBalance = lastBalance;
+		refreshTimer = 0;
+		hasRefreshed = false;
+		RestClient.Get<ScaleResponse>(MainMenu.Instance.baseLink + MainMenu.Instance.getScaleEndpoint + storedScale).Then(response =>
+		{
+			scaleAmount.text = response.weight.ToString("N0") + "<size=20><br>GRAM";
+			creditAmount.text = "<sprite index=0> " + (response.weight / 100).ToString("N0");
+			oldBalance.text = "<sprite index=0> " + storedBalance.ToString("N0");
+			newBalance.text = "<sprite index=0> " + (storedBalance + response.weight / 100).ToString("N0");
+            foreach (Animator anim in valueUpdate)
+            {
+                anim.Play("ScaleAmountUpdate", 0, 0f);
+            }
+        }).Catch(error =>
+		{
+			print("Error while fetching scale's information : " + error + " | scaleId : " + storedScale);
+			FakeInitialize();
+		});
+
+		if (TutorialManager.Instance.IsTutorialActive() && TutorialManager.Instance.GetActiveState().progressAfterScan)
+		{
+			TutorialManager.Instance.StartTutorial();
+		}
+	}
+
+	public void FakeInitialize()
+	{
+		randomizedValue = true;
+		storedScale = "";
+        storedBalance = 0;
+        int weight = Random.Range(0, 100000);
+        scaleAmount.text = weight.ToString("N0") + "<size=20><br>GRAM";
+        creditAmount.text = "<sprite index=0> " + (weight / 100).ToString("N0");
+        oldBalance.text = "<sprite index=0> " + storedBalance.ToString("N0");
+        newBalance.text = "<sprite index=0> " + (storedBalance + weight / 100).ToString("N0");
+        foreach (Animator anim in valueUpdate)
+        {
+            anim.Play("ScaleAmountUpdate", 0, 0f);
+        }
+    }
+
+	private void OnDisable()
+	{
+		refreshTimer = 0;
+		hasRefreshed = false;
+	}
+
+	public void Update()
+	{
+		refreshTimer += Time.deltaTime;
+		if (refreshTimer >= 2f && !hasRefreshed && !randomizedValue && !string.IsNullOrEmpty(storedScale))
+		{
+			hasRefreshed = true;
+            RestClient.Get<ScaleResponse>(MainMenu.Instance.baseLink + MainMenu.Instance.getScaleEndpoint + storedScale).Then(response =>
+            {
+                if (scaleAmount.text != response.weight.ToString("N0") + "<size=20><br>GRAM")
+                {
+                    foreach (Animator anim in valueUpdate)
+					{
+						anim.Play("ScaleAmountUpdate", 0, 0f);
+					}
+                }
+                scaleAmount.text = response.weight.ToString("N0") + "<size=20><br>GRAM";
+                creditAmount.text = "<sprite index=0> " + (response.weight / 100).ToString("N0");
+                oldBalance.text = "<sprite index=0> " + storedBalance.ToString("N0");
+                newBalance.text = "<sprite index=0> " + (storedBalance + response.weight / 100).ToString("N0");
+				refreshTimer = 0;
+				hasRefreshed = false;
+            }).Catch(error =>
+            {
+                print("Error while fetching scale's information : " + error + " | scaleId : " + storedScale);
+				refreshTimer = 0;
+				hasRefreshed = false;
+            });
+        } else if (randomizedValue && refreshTimer >= 0.2f)
+		{
+            foreach (Animator anim in valueUpdate)
+            {
+                anim.Play("ScaleAmountUpdate", 0, 0f);
+            }
+            storedBalance = 0;
+            int weight = Random.Range(0, 100000);
+            scaleAmount.text = weight.ToString("N0") + "<size=20><br>GRAM";
+            creditAmount.text = "<sprite index=0> " + (weight / 100).ToString("N0");
+            oldBalance.text = "<sprite index=0> " + storedBalance.ToString("N0");
+            newBalance.text = "<sprite index=0> " + (storedBalance + weight / 100).ToString("N0");
+			refreshTimer = 0;
+        }
+    }
+}
 
 ```
 
-| Nama Function | Parameters | Penjelasan |
-|---------------|------------|------------|
-| `Initiate` | ❌ | Menyiapkan permainan "Batu Gunting Kertas" agar bisa dimainkan. |
+| Nama Function    | Parameters                        | Penjelasan                                                                                                                                                               |
+| ---------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Initialize`     | `string scale`, `int lastBalance` | Menginisialisasi panel timbangan dengan mengambil data berat dari server berdasarkan ID timbangan, lalu menghitung dan menampilkan kredit serta saldo pengguna.          |
+| `FakeInitialize` | ❌                                 | Menginisialisasi panel menggunakan data acak (dummy) jika gagal mengambil data timbangan dari server. Biasanya digunakan untuk tahap tutorial atau fallback saat terjadi error. |
+| `OnDisable`      | ❌                                 | Mereset timer dan status refresh ketika panel dinonaktifkan.                                                                                                             |
+| `Update`         | ❌                                 | Memperbarui data timbangan secara berkala dari server setiap 2 detik atau menghasilkan data acak setiap 0,2 detik jika menggunakan mode dummy (`randomizedValue`).       |
+
 
 5. `HighlightManager.cs`
 ```csharp
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
 
+public class HighlightManager : MonoBehaviour
+{
+	public enum HighlightShape
+	{
+		CIRCLE = 0,
+		SQUARE = 1
+	}
+
+	public RectTransform highlight;
+	public Image highlightImage;
+	public List<Button> everySingleButton;
+	private List<bool> buttonLastState;
+
+	[Header("Shapes")]
+	public Sprite circleShape;
+	public Sprite squareShape;
+
+	private RectTransform targetPos;
+    private Vector2 currentOffset;
+    private bool followWidth;
+    private bool followHeight;
+    private bool isHighlighting;
+    private const float SIZE_PADDING = 0f;
+    public static HighlightManager Instance { get; private set; }
+
+	private void Awake()
+	{
+        Instance = this;
+
+        buttonLastState = new List<bool>();
+
+        foreach (Button button in everySingleButton)
+        {
+            buttonLastState.Add(button.interactable);
+        }
+
+        highlight.gameObject.SetActive(false);
+    }
+
+    public void StartHighlighting(
+        RectTransform target,
+        Vector2 offset,
+        HighlightShape shape = HighlightShape.SQUARE,
+        bool followTargetWidth = false,
+        bool followTargetHeight = false)
+    {
+        targetPos = target;
+        currentOffset = offset;
+
+        followWidth = followTargetWidth;
+        followHeight = followTargetHeight;
+
+        isHighlighting = true;
+
+        highlight.gameObject.SetActive(true);
+
+        highlightImage.sprite = shape == HighlightShape.CIRCLE
+            ? circleShape
+            : squareShape;
+
+        CopyRectTransformSettings(target, highlight);
+        // Position immediately
+        highlight.position = target.position + (Vector3)offset;
+
+        if (followWidth)
+        {
+            highlight.SetSizeWithCurrentAnchors(
+                RectTransform.Axis.Horizontal,
+                target.rect.width + SIZE_PADDING);
+        }
+
+        if (followHeight)
+        {
+            highlight.SetSizeWithCurrentAnchors(
+                RectTransform.Axis.Vertical,
+                target.rect.height + SIZE_PADDING);
+        }
+
+        // Disable buttons
+        foreach (Button button in everySingleButton)
+        {
+            button.interactable = false;
+        }
+        Button targetButton = target.GetComponent<Button>();
+        if (targetButton != null)
+        {
+            targetButton.interactable = true;
+        }
+    }
+
+    private void Update()
+    {
+        if (!isHighlighting || targetPos == null)
+            return;
+
+        highlight.position = targetPos.position + (Vector3)currentOffset;
+
+        if (followWidth)
+        {
+            highlight.SetSizeWithCurrentAnchors(
+                RectTransform.Axis.Horizontal,
+                targetPos.rect.width + SIZE_PADDING);
+        }
+
+        if (followHeight)
+        {
+            highlight.SetSizeWithCurrentAnchors(
+                RectTransform.Axis.Vertical,
+                targetPos.rect.height + SIZE_PADDING);
+        }
+    }
+
+    public void EndHighlight()
+    {
+        isHighlighting = false;
+        targetPos = null;
+
+        highlight.gameObject.SetActive(false);
+
+        for (int i = 0; i < everySingleButton.Count; i++)
+        {
+            everySingleButton[i].interactable = buttonLastState[i];
+        }
+    }
+
+    public static void CopyRectTransformSettings(
+    RectTransform source,
+    RectTransform target)
+    {
+        target.anchorMin = source.anchorMin;
+        target.anchorMax = source.anchorMax;
+        target.pivot = source.pivot;
+        target.anchoredPosition = source.anchoredPosition;
+        target.sizeDelta = source.sizeDelta;
+    }
+}
 ```
 
-| Nama Function | Parameters | Penjelasan |
-|---------------|------------|------------|
-| `Initiate` | ❌ | Menyiapkan permainan "Batu Gunting Kertas" agar bisa dimainkan. |
+| Nama Function               | Parameters                                                                                                                                                    | Penjelasan                                                                                                                                                                   |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Awake`                     | ❌                                                                                                                                                             | Menginisialisasi singleton `HighlightManager`, menyimpan status awal seluruh tombol, dan menyembunyikan highlight saat awal permainan.                                       |
+| `StartHighlighting`         | `RectTransform target`, `Vector2 offset`, `HighlightShape shape = HighlightShape.SQUARE`, `bool followTargetWidth = false`, `bool followTargetHeight = false` | Memulai efek highlight pada elemen UI tertentu, mengatur bentuk highlight, mengikuti ukuran target jika diperlukan, serta menonaktifkan interaksi tombol lain selain target. |
+| `Update`                    | ❌                                                                                                                                                             | Memperbarui posisi dan ukuran highlight secara real-time agar selalu mengikuti target yang sedang disorot.                                                                   |
+| `EndHighlight`              | ❌                                                                                                                                                             | Menghentikan highlight, menyembunyikan objek highlight, dan mengembalikan status interaksi semua tombol seperti semula.                                                      |
+| `CopyRectTransformSettings` | `RectTransform source`, `RectTransform target`                                                                                                                | Menyalin pengaturan `RectTransform` dari objek sumber ke objek target, termasuk anchor, pivot, posisi, dan ukuran.                                                           |
+
 
 6. `TutorialManager.cs`
 ```csharp
+using System;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
 
+public class TutorialManager : MonoBehaviour
+{
+    public static TutorialManager Instance { get; private set; }
+    public TutorialState[] tutorialStates;
+    public TutorialState endOfTutorial;
+    int tutorialIndex;
+
+    public Animator tutorialAnim;
+    public TextMeshProUGUI tutorialText;
+
+    public Button skipTutorial;
+    public TextMeshProUGUI skipText;
+
+    Button lastButtonForTutorial;
+
+    private void Awake()
+    {
+        Instance = this;
+    }
+
+    private void Start()
+    {
+        tutorialIndex = -1;
+    }
+
+    public void CheckForTutorialStart(Button firstHighlightButton)
+    {
+        if (PlayerPrefs.GetInt("FirstTimePlaying", 0) == 0 && MainMenu.Instance.storedBalance < 5)
+        {
+            tutorialIndex = 0;
+            tutorialStates[tutorialIndex].targetHighlight = firstHighlightButton.GetComponent<RectTransform>();
+            StartTutorial();
+        }
+    }
+
+    public void StartTutorial()
+    {
+        if (lastButtonForTutorial != null)
+        {
+            lastButtonForTutorial.onClick.RemoveListener(StartTutorial);
+        }
+        if (tutorialIndex >= tutorialStates.Length)
+        {
+            tutorialAnim.Play("TutorialDisappear", 0, 0f);
+            tutorialText.text = endOfTutorial.tutorialText;
+            HighlightManager.Instance.EndHighlight();
+            tutorialIndex = -1;
+            PlayerPrefs.SetInt("FirstTimePlaying", 1);
+            return;
+        }
+        tutorialAnim.gameObject.SetActive(true);
+        tutorialAnim.Play("TutorialAppear", 0, 0f);
+
+        TutorialState state = tutorialStates[tutorialIndex];
+        tutorialText.text = state.tutorialText;
+        HighlightManager.Instance.StartHighlighting(state.targetHighlight, Vector2.zero, state.shape, state.followShapeWidth, state.followShapeHeight);
+
+        if (state.enableSkipTutorial)
+        {
+            skipText.text = state.skipTutorialText;
+            skipTutorial.gameObject.SetActive(true);
+        } else
+        {
+            skipTutorial.gameObject.SetActive(false);
+        }
+
+        lastButtonForTutorial = state.targetHighlight.GetComponent<Button>();
+        if (lastButtonForTutorial != null)
+        {
+            lastButtonForTutorial.onClick.AddListener(StartTutorial);
+        }
+
+        tutorialIndex++;
+    }
+
+    public void SkipTutorial()
+    {
+        TutorialState current = GetActiveState();
+        foreach (GameObject obj in current.enabledOnSkip)
+        {
+            Animator isThereAnim = obj.GetComponent<Animator>();
+            if (isThereAnim != null)
+            {
+                isThereAnim.Play("PanelAppear", 0, 0f);
+            }
+            if (obj == MainMenu.Instance.modernScalePanel.gameObject)
+            {
+                MainMenu.Instance.modernScalePanel.FakeInitialize();
+            }
+            obj.SetActive(true);
+        }
+        foreach (GameObject obj in current.disabledOnSkip)
+        {
+            Animator isThereAnim = obj.GetComponent<Animator>();
+            if (isThereAnim != null)
+            {
+                isThereAnim.Play("PanelDisappear", 0 ,0f);
+            } else
+            {
+                obj.SetActive(false);
+            }
+        }
+        StartTutorial();
+    }
+
+    public TutorialState GetActiveState()
+    {
+        return tutorialStates[tutorialIndex - 1];
+    }
+
+    public bool IsTutorialActive()
+    {
+        return tutorialIndex >= 0;
+    }
+}
+
+[System.Serializable]
+public class TutorialState
+{
+    public RectTransform targetHighlight;
+
+    [TextArea(3, 10)]
+    public string tutorialText;
+
+    public HighlightManager.HighlightShape shape;
+
+    public bool followShapeWidth;
+
+    public bool followShapeHeight;
+
+    public bool progressAfterScan;
+
+    [Header("Skip Tutorial")]
+    public bool enableSkipTutorial;
+    [TextArea(3, 10)]
+    public string skipTutorialText;
+    public GameObject[] enabledOnSkip;
+    public GameObject[] disabledOnSkip;
+}
 ```
 
-| Nama Function | Parameters | Penjelasan |
-|---------------|------------|------------|
-| `Initiate` | ❌ | Menyiapkan permainan "Batu Gunting Kertas" agar bisa dimainkan. |
+| Nama Function           | Parameters                    | Penjelasan                                                                                                                                                                           |
+| ----------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Awake`                 | ❌                             | Menginisialisasi singleton `TutorialManager` dengan mengisi `Instance`.                                                                                                              |
+| `Start`                 | ❌                             | Mengatur nilai awal `tutorialIndex` menjadi `-1`, menandakan tutorial belum aktif.                                                                                                   |
+| `CheckForTutorialStart` | `Button firstHighlightButton` | Memeriksa apakah pemain baru pertama kali bermain dan saldo kurang dari 5. Jika ya, memulai tutorial dari langkah pertama.                                                           |
+| `StartTutorial`         | ❌                             | Menjalankan langkah tutorial saat ini, menampilkan teks tutorial, mengaktifkan highlight pada target UI, serta mengatur tombol yang akan melanjutkan tutorial ke langkah berikutnya. |
+| `SkipTutorial`          | ❌                             | Menjalankan aksi yang telah ditentukan ketika pemain memilih melewati langkah tutorial tertentu, lalu melanjutkan ke langkah berikutnya.                                             |
+| `GetActiveState`        | ❌                             | Mengembalikan data `TutorialState` yang sedang aktif saat ini.                                                                                                                       |
+| `IsTutorialActive`      | ❌                             | Memeriksa apakah tutorial sedang berjalan atau tidak.                                                                                                                                |
+
+| Nama Class      | Parameters / Fields                                                                                                                                                                   | Penjelasan                                                                                                                                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TutorialState` | `targetHighlight`, `tutorialText`, `shape`, `followShapeWidth`, `followShapeHeight`, `progressAfterScan`, `enableSkipTutorial`, `skipTutorialText`, `enabledOnSkip`, `disabledOnSkip` | Menyimpan konfigurasi untuk satu langkah tutorial, termasuk target yang disorot, teks instruksi, bentuk highlight, pengaturan skip, serta objek yang diaktifkan atau dinonaktifkan saat tutorial dilewati. |
 
 7. `CutoutMaskUI.cs`
 ```csharp
+using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.UI;
 
+public class CutoutMaskUI : Image
+{
+    public override Material materialForRendering {
+        get
+        {
+            Material material = new Material(base.materialForRendering);
+            material.SetInt("_StencilComp", (int)CompareFunction.NotEqual);
+            return material;
+        }
+    }
+}
 ```
 
-| Nama Function | Parameters | Penjelasan |
-|---------------|------------|------------|
-| `Initiate` | ❌ | Menyiapkan permainan "Batu Gunting Kertas" agar bisa dimainkan. |
+| Nama Function          | Parameters | Penjelasan                                                                                                                                             |
+| ---------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `materialForRendering` | ❌          | Mengembalikan material khusus untuk proses rendering UI dengan mengubah pengaturan stencil agar area tertentu menjadi transparan (cutout/mask effect). |
 
 8. `FirebaseManager.cs`
-```csharp
 
+`FirebaseManager.cs` memperlukan **WebClientID** untuk berfungsi. Kamu bisa temukan ini di **google-services.json** atau melalui cara **Google Cloud** di - ["Langkah 1.6"](#langkah-16--setup-firebase).
+```csharp
+using System.Threading.Tasks;
+using Firebase;
+using Firebase.Auth;
+using Google;
+using UnityEngine;
+
+public class FirebaseManager : MonoBehaviour
+{
+    public static FirebaseManager Instance { get; private set; }
+
+    public FirebaseAuth Auth { get; private set; }
+
+    public bool IsReady { get; private set; }
+
+    private async void Awake()
+    {
+        if (Instance != null)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+
+        await InitializeFirebase();
+    }
+
+    private async Task InitializeFirebase()
+    {
+        var dependencyStatus =
+            await FirebaseApp.CheckAndFixDependenciesAsync();
+
+        if (dependencyStatus != DependencyStatus.Available)
+        {
+            Debug.LogError(
+                "Firebase dependencies unavailable: " +
+                dependencyStatus);
+
+            return;
+        }
+
+        Auth = FirebaseAuth.DefaultInstance;
+
+        try
+        {
+            GoogleSignIn.Configuration =
+                new GoogleSignInConfiguration
+                {
+                    WebClientId =
+                        "[webClientID]",
+
+                    RequestIdToken = true
+                };
+        }
+        catch (System.Exception e)
+        {
+            // Happens if GoogleSignIn.DefaultInstance
+            // was already created before configuration.
+            Debug.LogWarning(
+                "Google Sign-In already configured: " +
+                e.Message);
+        }
+
+        IsReady = true;
+
+        Debug.Log("Firebase Manager Ready");
+    }
+}
 ```
 
-| Nama Function | Parameters | Penjelasan |
-|---------------|------------|------------|
-| `Initiate` | ❌ | Menyiapkan permainan "Batu Gunting Kertas" agar bisa dimainkan. |
+| Nama Function        | Parameters | Penjelasan                                                                                                                                            |
+| -------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Awake`              | ❌          | Menginisialisasi singleton `FirebaseManager`, mencegah duplikasi objek, mempertahankan objek antar scene, dan memulai proses inisialisasi Firebase.   |
+| `InitializeFirebase` | ❌          | Memeriksa dependensi Firebase, menginisialisasi Firebase Authentication, mengonfigurasi Google Sign-In, dan menandai Firebase sebagai siap digunakan. |
+
+9. `AnimationEvents.cs`
+```csharp
+using UnityEngine;
+
+[System.Serializable]
+public class AnimationEvent
+{
+    public enum TypeOfEvent { Disable, Enable} // Modify this enum as much as you need.
+    public TypeOfEvent eventType;
+    public GameObject[] target;
+}
+public class AnimationEvents : MonoBehaviour
+{
+    public AnimationEvent[] events;
+    void ActivateEvent(AnimationEvent selected) // Add the effects in your types here...
+    {
+        switch (selected.eventType)
+        {
+            case AnimationEvent.TypeOfEvent.Disable:
+                foreach (GameObject target in selected.target)
+                {
+                    target.SetActive(false);
+                }
+                break;
+            case AnimationEvent.TypeOfEvent.Enable:
+                foreach (GameObject target in selected.target)
+                {
+                    target.SetActive(true);
+                }
+                break;
+        }
+    }
+
+    public void StartEvent(int index)
+    {
+        ActivateEvent(events[index]);
+    }
+
+    public void StartAllEvent()
+    {
+        foreach (AnimationEvent anim in  events)
+        {
+            ActivateEvent(anim);
+        }
+    }
+    
+}
+```
+
+| Nama Function   | Parameters                | Penjelasan                                                                                                        |
+| --------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `ActivateEvent` | `AnimationEvent selected` | Menjalankan aksi berdasarkan jenis event yang dipilih, seperti mengaktifkan atau menonaktifkan GameObject target. |
+| `StartEvent`    | `int index`               | Menjalankan satu event dari daftar `events` berdasarkan indeks yang diberikan.                                    |
+| `StartAllEvent` | ❌                         | Menjalankan seluruh event yang terdapat dalam array `events`.                                                     |
+
+| Nama Class        | Parameters / Fields   | Penjelasan                                                                                                     |
+| ----------------- | --------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `AnimationEvent`  | `eventType`, `target` | Menyimpan konfigurasi sebuah event animasi, termasuk jenis aksi dan objek yang menjadi target.                 |
+| `AnimationEvents` | `events`              | Mengelola dan menjalankan kumpulan `AnimationEvent`, biasanya dipanggil melalui Animation Event pada Animator. |
+
+## 📱 TUTORIAL 7 - PEMBUATAN SCENE MAIN MENU
+
+### Langkah 7.1 — Pembuatan Main Screen
+**Main Screen** adalah tampilan awal disaat pemain pertama kali masuk. Pastikan pemain bisa main, mengatur volume, mendapat Credit, dan keluar dari permainan. Untuk tutorial ini kita memakai design sesuai Unity, bisa diganti sesuai keinginan.
+
+1. Klik kanan di **Hierarchy → UI (Canvas) → Button - TextMeshPro**. Rename dan ganti teks di dalamnya menjadi `Main`.
+2. Tambah script `MainMenu.cs`, `HighlightManager.cs`, dan `TutorialManager.cs` ke objek bebas. Di tutorial ini, kita akan masukkan ke `Canvas`.
+3. Duplikat sebanyak tiga kali, lalu rename dan ganti teks menjadi `Credit`, `Pengaturan`, dan `Keluar`.
+4. Posisikan dan desain **Button** sesuai dengan keinginan.
+5. Tambahkan fungsi ke masing-masing tombol :
+   
+   `Main` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Select Games Panel` > `GameObject` > `**SetActive(true)**` → Tambah fungsi ini setelah kamu membuat panelnya.
+     
+   `Credit` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `QR Scanning Panel` > `GameObject` > `**SetActive(true)**` → Tambah fungsi ini setelah kamu membuat panelnya.
+  
+   `Pengaturan` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Settings Panel` > `GameObject` > `**SetActive(true)**` → Tambah fungsi ini setelah kamu membuat panelnya.
+     
+   `Keluar` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Quit Panel` > `GameObject` > `**SetActive(true)**` → Tambah fungsi ini setelah kamu membuat panelnya.
+  
+6. Buat semacam tab yang berisi nama akun dan tombol untuk `Log Out`.
+
+   `Log Out` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Canvas` > `MainMenu` > `**LogOut()**`
+    
+7. Di `MainMenu.cs`, masukkan variable berikut :
+	- Account Detail : `Account Detail Tab`
+	- Account Name : `Account Name (TextMeshProUGUI)`
+
+### Langkah 7.2 — Pembuatan Panel Template
+Setiap panel yang akan kita buat akan memiliki beberapa hal yang sama, entah desain atau komponen.
+
+1. Klik kanan di **Hierarchy → UI (Canvas) → Panel**. Rename menjadi `TEMPLATE`.
+2. Di **Inspector**, tambah `Canvas Group`, `Animator`, dan `AnimationEvents.cs`.
+
+3. **AnimationEvents.cs** :
+   - Events : (EventType.Disable, `Template`) → Pastikan event menarget diri sendiri, dan EventType menjadi **Disable**.
+
+4. Buat design yang diinginkan terlebih dahulu. Di tutorial ini, akan ada Tab yang isinya ada **TextMeshPro - Text (UI)** serta **Button** untuk menutup panel.
+5. Untuk **Button**, jalankan :
+
+   - `Board` > `GameManager` > `**PlaySFX("button")**`
+
+   - `TEMPLATE` > `Animator` > `**Play("PanelDisappear")**`
+
+6. Jika sudah selesai design, buka tab **Animation** dengan `Window → Animation → Animation`.
+7. Animasi yang kita perlukan adalah `PanelAppear` dan `PanelDisappear`. `PanelAppear` adalah animasi panel yang mulai muncul, seperti **Fade In**. `PanelDisappear` adalah panel yang perlahan menghilang, seperti **Fade Out**. Pastikan di akhir frame `PanelDisappear`, ada **Animation Event** yang menjalankan `AnimationEvents.StartAllEvent()`. Serta, pastikan animasi juga mengkontrol **Canvas Group**, yaitu dibagian **Interactable**. Pastikan `PanelAppear` menyalakan **Interactable** di akhir frame dan `PanelDisappear` mematikan **Interactable** di awal frame.
+8. Matikan **Loop Time** dari kedua **Animation Clip** tersebut dari file yang barusan dibuat.
+9. Di **Animator**, yang diakses melalui `Window → Animation → Animator`, pastikan `PanelAppear` menjadi default clip yang mulai pertama kali. Klik kanan clip `PanelAppear`, lalu klik `Set as Layer Default State`.
+
+### Langkah 7.3 — Pembuatan Panel Lain
+Setelah membuat panel `TEMPLATE`, duplikat dan gunakan design tersebut untuk panel-panel lain. Berikut adalah detail yang diperlukan untuk masing-masing panel.
+
+1. **Account Panel - Ask** → Tab ini hanya memiliki satu tombol, yaitu `Sign in with Google`. Pastikan tombol ini tersambung dengan `Canvas` > `MainMenu` > `**PlaySFX("button")**` dan `Canvas` > `MainMenu` > `**SignInGoogle()**`.
+
+Masukkan panel ini ke script `MainMenu.cs` di variable `Sign In Panel`.
+
+2. **Account Panel - Register (opsional)** → Tab ini berisi dua **TextMeshPro - InputField** yang dinamakan `Username Field` dan `Password Field`. Pastikan `Password Field` memiliki **Content Type** tipe **Password**. Serta, pastikan `Password Field` memiliki tombol kecil untuk menyembunyikan/menunjukkan password. Setelah itu, buat dua tombol untuk memulai tahap **Register** dan mengganti ke tahap **Login**.
+
+   `Mulai Register` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Canvas` > `MainMenu` > `**Register()**`
+     
+   `Ganti ke Login` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Account Panel - Login` > `GameObject` > `**SetActive(true)**`
+   - `Account Panel - Login` > `Animator` > `**Play("PanelAppear")**`
+   - `Account Panel - Register` > `Animator` > `**Play("PanelDisappear")**`
+  
+Di `MainMenu.cs`, masukkan variable berikut :
+- Register Tab : `Account Panel - Register (Animator)`
+- Register Username Field : `Username Field (TMP_Input Field)`
+- Register Password Field : `Password Field (TMP_Input Field)`
+- Register Password Show : `Show Password (Image)`
+
+3. **Account Panel - Login (opsional)** → Sama seperti **Account Panel - Register**, namun tombol yang mengganti ke tahap **Login** berubah menjadi **Register**, dan tombol untuk mulai tahap **Register** berubah menjadi **Login**.
+
+   `Mulai Login` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Canvas` > `MainMenu` > `**Login()**`
+     
+   `Ganti ke Register` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Account Panel - Register` > `GameObject` > `**SetActive(true)**`
+   - `Account Panel - Register` > `Animator` > `**Play("PanelAppear")**`
+   - `Account Panel - Login` > `Animator` > `**Play("PanelDisappear")**`
+
+Di `MainMenu.cs`, masukkan variable berikut :
+- Login Tab : `Account Panel - Login (Animator)`
+- Login Username Field : `Username Field (TMP_Input Field)`
+- Login Password Field : `Password Field (TMP_Input Field)`
+- Login Password Show : `Show Password (Image)`
+  
+4. **Quit Panel** → Memiliki setidaknya 2 tombol untuk konfirmasi ingin keluar atau tidak.
+
+   `Yes - Quit` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Canvas` > `MainMenu` > `**QuitGame()**`
+     
+   `No - Quit` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `QuitPanel` > `Animator` > `**Play("PanelDisappear)**`
+
+5. **Settings Panel** → Memiliki 2 slider yang mengkontrol volume musik dan sound effect. Tambahkan script `Settings.cs` di `Settings Panel`. Tarik kedua slider ke variable yang diperlukan di `Settings.cs`. Pastikan juga ada tombol untuk menutup panel.
+
+   `Music Slider` **OnValueChanged()** :
+   - ``Settings Panel`` > `Settings` > `**SetVolume(true)**`
+  
+   `SFX Slider` **OnValueChanged()** :
+   - ``Settings Panel`` > `Settings` > `**SetVolume(false)**`
+
+7. **QR Scanning Panel** → Memiliki **Raw Image** untuk menunjukkan kamera, tombol untuk menanyakan apabila aplikasi tidak punya akses ke kamera, dan tombol menutup panel. Tambahkan `QRScanning.cs` ke objek `QR Scanning Panel`. Masukkan variable **Raw Image** ke `targetImage` dan tombol menanyakan ke `askForCameraButton`. Serta, buat animasi notifikasi apabila QR gagal untuk discan. Pastikan nama **AnimationClip**-nya adalah `TurnAppear` dan **Loop Time** dimatikan.
+
+Di `MainMenu.cs`, masukkan variable berikut :
+- Camera QR Menu : `QR Scanning Panel (Animator)`
+- Notification QR Appear : `Notification QR (Animator)`
+
+9. **Conversion Credit Panel** → Memiliki 4 **TextMeshPro - Text (UI)** yang menunjukkan jumlah berat, konversi berat ke Credit, jumlah Credit sebelum konversi dan sesudah konversi. Tambahkan `ScalePanel.cs` ke objek `Conversion Credit Panel`. Masukkan variable :
+   - Scale Amount : `Scale Amount Text` → Teks yang menunjukkan jumlah berat.
+   - Credit Amount : `Credit Amount Text` → Teks yang menunjukkan jumlah konversi ke Credit.
+   - Old Balance : `Old Balance Text` → Teks yang menunjukkan jumlah Credit sebelum konversi.
+   - New Balance : `New Balance Text` → Teks yang menunjukkan jumlah Credit sesudah konversi.
+   - Self Anim : `Conversion Credit Panel` → Animator objek itu sendiri.
+   - Value Update : `OPSIONAL` → Bebas mau diisi animasi apa, ini akan jalan setiap isi dari timbangan ter-update.
+   
+   Serta, juga ada tombol `Claim` dan tombol `Back`.  Masukkan fungsi berikut :
+   
+   `Claim` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Canvas` > `MainMenu` > `**DepositScale()**`
+     
+   `Back` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Canvas` > `MainMenu` > `**StopScaleConnection()**`
+  
+Di `MainMenu.cs`, masukkan variable berikut :
+- Modern Scale Panel : `Conversion Credit Panel (Scale Panel)`
+
+10. **Select Games Panel** → Memiliki 4 tombol yang digunakan untuk memilih mode permainan yang ingin dimainkan. Setiap tombol akan membuka **Select Games Sub-Panel** untuk jenis game yang ditunjukkan di tombolnya. Serta ada tombol `Back`.
+
+11. **Select Games Sub-Panel** → Memiliki 2 tombol yang menunjukkan `Main` dan `Kembali`, serta teks yang menunjukkan jumlah Credit yang dimiliki pemain dan teks yang menunjukkan nama permainan/deskripsi dari permainan yang dimainkan. Pastikan ada 4 panel agar setiap tombol di `Select Games Panel` bisa menyalakan panel miliknya.
+
+   `Main` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Canvas` > `MainMenu` > `**PlayGame(1)**` → Untuk "Congklak", indexnya adalah 1. Untuk mode lain, button-nya harus dimatikan **Interactable**.
+
+Setelah membuat keempat panel ini, kembali ke **Select Games Panel**, lalu ke 4 tombol tersebut. Tambahkan fungsi berikut :
+
+   `Congklak Mode` :
+   - `Canvas` > `TutorialManager` > `**CheckForTutorialStart(Back Button)**` → Pilih tombol **Back** yang ada di Congklak Sub-Panel.
+
+   `Gasing Mode` :
+   - `Canvas` > `TutorialManager` > `**CheckForTutorialStart(Back Button)**` → Pilih tombol **Back** yang ada di Gasing Sub-Panel.
+
+   `Ketapel Mode` :
+   - `Canvas` > `TutorialManager` > `**CheckForTutorialStart(Back Button)**` → Pilih tombol **Back** yang ada di Ketapel Sub-Panel.
+
+   `Kelereng Mode` :
+   - `Canvas` > `TutorialManager` > `**CheckForTutorialStart(Back Button)**` → Pilih tombol **Back** yang ada di Kelereng Sub-Panel.
+
+Masukkan teks yang menunjukkan jumlah Credit dalam script `MainMenu.cs` di variable `Every Currency Showcase`. Dalam tutorial, harus ada 4 **TextMeshProUGUI**.
+
+12. **Highlight** → Digunakan untuk menunjukkan tombol yang ingin difokuskan disaat tutorial.
+    a. Klik kanan di **Hierarchy → UI (Canvas) → Image**.
+    b. Ganti sprite menjadi `9-Sliced`, apabila tidak ada, pilih `Background`.
+    c. Tambah komponen `Mask` dan matikan **Show Mask Graphic**.
+    d. Klik kanan di **Highlight → UI (Canvas) → Image**.
+    e. Ganti warnanya menjadi warna hitam dengan sedikit transparan.
+    f. Besarkan bentuknya hingga menutupi semua layar. Untuk lebih aman, buat `Width` dan `Height` menjadi 9999.
+    g. Matikan seluruh objek **Highlight**, akan kita pakai disaat kita membuat sistem tutorial.
+    h. Di `HighlightManager.cs` yang ada di **Canvas**, masukkan variable :
+	- Highlight : `Highlight (Rect Transform)`
+ 	- Highlight Image : `Highlight (Image)`
+	- Every Single Button : "Semua **Button** kecuali `Skip Tutorial` → **Sebaiknya lakukan ini setelah semua tombol sudah dibuat.**
+ 	- Circle Shape : `Circle Sprite.png` → Masukkan sprite berbentuk lingkaran.
+  	- Square Shape : `Square Sprite.png` → Masukkan sprite berbentuk persegi.
+
+14. **Tutorial Tab** → Muncul ketika tutorial sedang jalan. Hanya muncul di bagian atas layar. Beri animasi dengan nama `TutorialAppear` untuk tutorial yang muncul dan update teks, dan `TutorialDisappear` untuk tutorial yang selesai, dan akan menghilang perlahan. Pastikan `Tutorial Tab` memiliki **TextMeshPro - Text (UI)** di dalamnya. Tambahkan juga tombol agar pemain bisa melewati tutorial, dengan **TextMeshPro - Text (UI)**.
+
+    `Skip Tutorial` :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Canvas` > `TutorialManager` > `**SkipTutorial()**`
+
+Jangan lupa untuk mengisi variable di `TutorialManager.cs` yang ada di **Canvas**.
+- Tutorial Anim : `Tutorial Tab (Animator)`
+- Tutorial Text : `Tutorial Text (TextMeshProUGUI)`
+- Skip Tutorial : `Skip Tutorial (Button)`
+- Skip Text : `Skip Text (TextMeshProUGUI)`
+
+14. **Loading Blocker** → Untuk yang terakhir, ini hanya sebuah panel yang menutupi semua input tombol. Buat panel melalui **Hierarchy → UI (Canvas) → Panel**, lalu tambah animasi **Fade In** dari animator yang sama dengan `TEMPLATE`. Masukkan panel ini dalam script `MainMenu.cs` di variable `Loading Blocker`.
+
+### Langkah 7.4 — Isi Variable Kosong
+1. `MainMenu.cs` :
+   - Show Password : `Show Sprite` → Masukkan sprite yang menunjukkan bahwa password itu kelihatan, misal gambar mata.
+   - Hide Password : `Hide Sprite` → Masukkan sprite yang menunjukkan bahwa password itu tersembunyi, misal gambar mata yang di silang.
+   - Transition Settings : `Fade` → Pilih transisi dari template yang ada.
+   - Base Link : `https://backend.com' → Masukkan link backend yang kamu punya. Pastikan ada [https://] di bagian awal. Untuk backend, akan diajarkan pembuatannya di [Tutorial 8](#-tutorial-8---pembuatan-backend).
+2. `TutorialManager.cs` :
+   - Tutorial States :
+
+| Index | Target Highlight | Shape | Progress After Scan | Skip Tutorial | Skip Text |
+|-------|-----------------|--------|--------------------|--------------|-----------|
+| 0 | Tombol tutup popup Credit | Square | ❌ | ❌ | - |
+| 1 | Tombol tutup tab | Square | ❌ | ❌ | - |
+| 2 | Tombol Scan QR | Circle | ❌ | ❌ | - |
+| 3 | Panel Scan QR | Square | ✅ | ✅ | Saya belum punya kode QR. |
+| 4 | Tombol Klaim Credit | Square | ❌ | ❌ | - |
+
+Untuk index 3, pastikan :
+- Disable on Skip : { `QR Scanning Panel` }
+- Enable on Skip : { `Credit Conversion Panel` }
+
+## 🌐 TUTORIAL 8 - PEMBUATAN BACKEND
+Backend diperlukan untuk mengirim dan menerima data dari timbangan. Untuk itu, kita perlu membuatnya menggunakan `Visual Studio Code`.
+
+1. Buat projek baru dengan **Node.js + Express**.
+2. Buat file baru bernama `server.js`.
+3. Install semua package ini melalui **Terminal** :
+
+```csharp
+npm install express mongoose bcrypt jsonwebtoken dotenv express-rate-limit firebase-admin
+```
+
+3. Tulis :
+
+```csharp
+const express = require("express");
+const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
+const rateLimit = require("express-rate-limit");
+const admin = require("firebase-admin");
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+});
+
+mongoose.connect(process.env.MONGO_URL);
+
+const loginLimiter =
+    rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: 20
+    });
+
+const User = mongoose.model("User", {
+    username: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
+
+    passwordHash: String,
+
+    firebaseUid: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
+
+    email: String,
+
+    credit: {
+        type: Number,
+        default: 0
+    }
+});
+
+const app = express();
+app.use(express.json());
+
+const scales = {};
+
+//Scale counting
+app.post("/scale/:id", (req, res) => {
+
+    const id = req.params.id;
+    const weight = Number(req.body.weight);
+
+    if (weight === 0) {
+        scales[id] = {
+            weight: 0,
+            deposited: false
+        };
+    }
+    else {
+        scales[id] = {
+            weight,
+            deposited:
+                scales[id]?.deposited ?? false
+        };
+    }
+
+    res.json({
+        success: true
+    });
+});
+
+app.get("/scale/:id", (req, res) => {
+
+    const id = req.params.id;
+
+    const scale = scales[id];
+
+    if (!scale) {
+        return res.status(404).json({
+            message: "Scale not found"
+        });
+    }
+
+    res.json({
+        scale: id,
+        weight: scale.weight,
+        deposited: scale.deposited
+    });
+});
+
+app.post("/deposit", auth, async (req, res) => {
+    try {
+
+        const scaleId = req.body.scaleId;
+
+        const scale = scales[scaleId];
+
+        if (!scale) {
+            return res.status(404).json({
+                message: "Scale not found"
+            });
+        }
+
+        if (scale.deposited) {
+            return res.status(400).json({
+                message: "Already deposited"
+            });
+        }
+
+        if (scale.weight < 100) {
+            return res.status(400).json({
+                message: "Not enough weight"
+            });
+        }
+
+        const credit =
+            Math.floor(scale.weight / 100);
+
+        const user =
+            await User.findById(
+                req.user.userId
+            );
+
+        user.credit += credit;
+
+        await user.save();
+
+        scale.deposited = true;
+
+        res.json({
+            earned: credit,
+            totalCredit: user.credit
+        });
+    } 
+    catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            message: "Server error"
+        });
+    }
+});
+
+//Account creation
+app.post("/register", async (req, res) => {
+
+    if (
+        !req.body.username ||
+        req.body.username.length < 3
+    ) {
+        return res.status(400).json({
+            message:
+                "Username too short"
+        });
+    }
+
+    if (
+        !req.body.password ||
+        req.body.password.length < 6
+    ) {
+        return res.status(400).json({
+            message:
+                "Password too short"
+        });
+    }
+
+    const existing =
+        await User.findOne({
+            username: req.body.username
+        });
+
+    if (existing) {
+        return res
+            .status(400)
+            .json({
+                message: "Username taken"
+            });
+    }
+
+    const passwordHash =
+        await bcrypt.hash(
+            req.body.password,
+            10
+        );
+
+    const user = await User.create({
+        username: req.body.username,
+        passwordHash
+    });
+
+    const token = jwt.sign(
+        {
+            userId: user._id,
+            username: user.username
+        },
+        process.env.JWT_SECRET,
+        {
+            expiresIn: "7d"
+        }
+    );
+
+    res.json({ token });
+});
+
+app.post("/login", loginLimiter, async (req, res) => {
+    try {
+
+        const user = await User.findOne({
+            username: req.body.username
+        });
+
+        if (
+            !user ||
+            !(await bcrypt.compare(
+                req.body.password,
+                user.passwordHash
+            ))
+        ) {
+            return res.status(401)
+                .send("Invalid login");
+        }
+
+        const token = jwt.sign(
+            {
+                userId: user._id,
+                username: user.username
+            },
+            process.env.JWT_SECRET,
+            {
+                expiresIn: "7d"
+            }
+        );
+
+        res.json({ token });
+
+    } catch (err) {
+
+        console.error(err);
+
+        res.status(500).json({
+            message: "Server error"
+        });
+
+    }
+});
+function auth(req, res, next)
+{
+
+    const header =
+        req.headers.authorization;
+
+    if (!header)
+        return res.sendStatus(401);
+
+    const token =
+        header.replace(
+            "Bearer ",
+            ""
+        );
+
+    try {
+
+        req.user =
+            jwt.verify(
+                token,
+                process.env.JWT_SECRET
+            );
+
+        next();
+
+    } catch {
+
+        return res.sendStatus(401);
+
+    }
+}
+
+app.get("/profile", auth, async (req, res) => {
+
+    try {
+
+        const user =
+            await User.findById(req.user.userId);
+
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found"
+            });
+        }
+
+        // If we reach here, token is valid (auth already passed)
+        res.json({
+            valid: true,
+            username: user.username,
+            credit: user.credit
+        });
+
+    } catch (err) {
+
+        console.error(err);
+
+        res.status(500).json({
+            message: "Server error"
+        });
+
+    }
+
+});
+
+//firebase account
+app.post(
+    "/firebase-login",
+    async (req, res) => {
+        try {
+            const { firebaseToken } =
+                req.body;
+
+            const decoded =
+                await admin
+                    .auth()
+                    .verifyIdToken(
+                        firebaseToken
+                    );
+
+
+            const uid =
+                decoded.uid;
+
+            const email =
+                decoded.email;
+
+            const username =
+                decoded.name ||
+                email.split("@")[0];
+
+            let user =
+                await User.findOne({
+                    firebaseUid: uid
+                });
+
+            if (!user) {
+                user =
+                    await User.create({
+                        firebaseUid: uid,
+                        email,
+                        username,
+                        credit: 0
+                    });
+            }
+
+            const jwtToken =
+                jwt.sign(
+                    {
+                        userId: user._id
+                    },
+                    process.env.JWT_SECRET
+                );
+
+            res.json({
+                token: jwtToken
+            });
+        }
+        catch (error) {
+            console.error("Firebase login error:");
+            console.error(error);
+
+            res.status(401).json({
+                message: error.message
+            });
+        }
+    });
+
+app.post("/payment", auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        // Not enough credit
+        if (user.credit < 5) {
+            return res.status(400).json({
+                success: false,
+                message: "Not enough credit",
+                remaining: user.credit
+            });
+        }
+
+        user.credit -= 5;
+        await user.save();
+
+        return res.json({
+            success: true,
+            remaining: user.credit
+        });
+
+    } catch (err) {
+        console.error(err);
+
+        return res.status(500).json({
+            success: false,
+            message: "Server error"
+        });
+    }
+});
+
+app.listen(3000, () => {
+    console.log("Server running");
+});
+```
+
+| Nama Endpoint | Parameters | Penjelasan |
+| ------------- | ---------- | ---------- |
+| `POST /scale/:id` | **URL Param:** `id`<br>**Body:** `weight` | Mencatat atau memperbarui berat objek pada timbangan tertentu secara *real-time*. Jika beratnya 0, status timbangan di-reset (belum didepositkan). |
+| `GET /scale/:id` | **URL Param:** `id` | Mengambil data kondisi timbangan saat ini berdasarkan ID-nya, termasuk informasi berat terbaru dan apakah berat tersebut sudah diklaim/didepositkan. |
+| `POST /deposit` | **Header:** `Authorization` (JWT)<br>**Body:** `scaleId` | Memungkinkan pengguna terautentikasi untuk mengonversi berat yang ada di timbangan menjadi saldo kredit akun mereka (setiap 100 unit berat = 1 kredit), lalu menandai timbangan tersebut sudah diklaim (`deposited: true`). |
+| `POST /register` | **Body:** `username`, `password` | Mendaftarkan pengguna baru dengan melakukan validasi panjang input, memastikan *username* belum terpakai, melakukan *hashing* password, menyimpannya ke database MongoDB, dan langsung mengembalikan JWT token. |
+| `POST /login` | **Body:** `username`, `password` | Memverifikasi kredensial pengguna lokal menggunakan `bcrypt`. Jika cocok, *endpoint* ini akan mengembalikan JWT token untuk akses sesi. Dilindungi oleh `loginLimiter` untuk mencegah serangan *brute-force*. |
+| `auth` | **Header:** `Authorization` (JWT) | Fungsi perantara *(middleware)* untuk mengamankan *endpoint*. Ia memeriksa dan memverifikasi keaslian JWT token yang dikirim di header. Jika valid, data pengguna disimpan ke `req.user` dan akses dilanjutkan; jika tidak, ia langsung menolak akses dengan status 401. |
+| `GET /profile` | **Header:** `Authorization` (JWT) | Mengambil informasi profil dari pengguna yang sedang login (seperti *username* dan total saldo kredit) setelah lolos verifikasi *middleware* `auth`. |
+| `POST /firebase-login` | **Body:** `firebaseToken` | Mengautentikasi pengguna menggunakan pihak ketiga melalui Firebase. Server memverifikasi token Firebase tersebut, lalu otomatis mendaftarkan pengguna baru ke MongoDB jika akun belum ada, kemudian mengembalikan JWT token lokal. |
+| `POST /payment` | **Header:** `Authorization` (JWT) | Memproses transaksi pembayaran internal dengan memotong saldo kredit milik pengguna sebanyak 5 unit, selama saldo pengguna mencukupi. |
+
+4. Di foldernya, buat file dengan nama `.env`. Lalu, buka dengan **Notepad** atau aplikasi tulis lain.
+5. Tulis :
+
+```csharp
+MONGO_URL=XXX
+JWT_SECRET=XXX
+FIREBASE_SERVICE_ACCOUNT=XXX
+```
+
+6. Isi variable yang kosong sesuai dengan projek-mu, pastikan untuk menjaga file ini, dan tidak upload kemanapun.
+   - MONGO_URL : Bisa ditemukan di website [cloud.mongodb.com/](cloud.mongodb.com). Buat akun, cluster baru, lalu connect. Kamu akan mendapat semacam teks, lalu masukkan ke `.env` ini.
+   - JWT_SECRET : Ini digunakan untuk mengacak password untuk pengguna aplikasi-mu. Buat sepanjang mungkin dan seacak mungkin. Pastikan tidak ada yang tahu teks ini.
+   - FIREBASE_SERVICE_ACCOUNT : Ini adalah `google-service.json` yang dibuat di tutorial sebelumnya. Buka file tersebut, copy seluruh teksnya, lalu masukkan ke `.env`. Pastikan teks muncul dalam satu baris, apabila ada linebreak, akan muncul error di console.
+  
+7. Di Terminal, jalankan :
+
+```csharp
+node server.js
+```
+
+8. Backend-mu sekarang sudah jalan secara lokal!
+9. Untuk mencoba sistem backend tanpa timbangan, gunakan [**Postman**](www.postman.com).
+
+## 📷 TUTORIAL 9 - PEMBUATAN KODE QR
+Sebelum memulai testing, pemain harus memiliki Credit. Dan, cara untuk mendapat Credit adalah untuk mengakses timbangan.
+1. Pastikan Anda tahu apa ID timbangan yang ingin diakses. Contohnya seperti "TimbanganID1". Apabila masih menggunakan [**Postman**](www.postman.com), buat ID sendiri lalu sambungkan melalui **Postman**.
+2. Pergi ke [QR Code Dynamic](https://qrcodedynamic.com/qr/text) lalu generate kode QR yang isinya hanya ID itu saja.
+3. Dalam game, coba scan kode QR tersebut. Apabila gagal, timbangan itu belum disambungkan atau sudah di ambil Creditnya sebelumnya.
+4. Di **Postman**, masukkan :
+
+```csharp
+POST https://backend.com/scale/{SCALEID}
+```
+
+Pastikan `SCALEID` diganti dengan ID yang ingin disambungkan.
+
+5. Klik `Body`, lalu `raw`, tulis berikut :
+
+```csharp
+{
+    "weight": 500
+}
+```
+
+Apabila ada yang mengganti angka dari suatu ID, maka timbangan itu akan selamanya tersambung. Jadi, jika kita mengisi 500 gram di `TimbanganID1`, angka tersebut akan tetap 500 gram di permainan.
+
+5. Setiap ada orang yang selesai ambil Credit dari timbangan, pastikan timbangan tersebut harus dihilangkan beratnya, seperti `"weight": 0`. Hal ini agar tidak ada pemain yang menggunakan berat yang sama, sehingga bisa berulang-ulang mendapat Credit.
+
+## 🔧 TUTORIAL 10 - TESTING GAME
+Setelah membuat backend dan kode QR, sudah saatnya untuk testing game.
+
+-> Urutan memainkan game :
+1. Pergi ke scene `MainMenu`, lalu pencet 🞂 Play.
+2. Diawali dari klik `Play`, lalu pilih salah satu mode permainan.
+3. Akan ada tutorial yang muncul, ikutin alurnya hingga scan kode QR.
+4. Scan kode QR yang sudah kamu buat.
+5. Apabila berhasil, coba ambil hasilnya di game.
+6. Jika Credit menambah, coba memainkan "Congklak".
+7. Tes aturan dan mekanik.
+8. Jika sudah selesai, tes fitur-fitur lain, seperti Settings, Turbo Mode, dan Tombol-tombol lain.
+
+## 🎉 AKHIR TUTORIAL
+Selamat! Anda telah mencapai akhir dari tutorial ini. Tutorial ini menggunakan Unity 6.3 LTS (6000.3.8f1).
