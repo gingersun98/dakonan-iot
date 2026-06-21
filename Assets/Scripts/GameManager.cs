@@ -815,7 +815,7 @@ public class GameManager : MonoBehaviour
         else
         {
             resultPanel.SetActive(true);
-            resultText.text = "DRAW";
+            resultText.text = "Seri!";
         }
         return true;
     }
@@ -891,7 +891,7 @@ public class GameManager : MonoBehaviour
 
         resultPanel.SetActive(true);
         resultText.text =
-            isPlayer ? "PLAYER WON!" : "ENEMY WON!";
+            isPlayer ? "Pemain menang!" : "Pemain kalah!";
     }
 
     public BallAheadResult CheckBallAhead(BallContainer starter, int amount)

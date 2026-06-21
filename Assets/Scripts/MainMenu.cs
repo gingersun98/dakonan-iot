@@ -14,36 +14,70 @@ using UnityEngine.UI;
 public class MainMenu : MonoBehaviour
 {
     public static MainMenu Instance { get; private set; }
-    [Header("Technical")]
+
+    #region UI References
+
+    [Header("Account UI")]
     public GameObject accountDetail;
     public TextMeshProUGUI accountName;
+    public TextMeshProUGUI[] everyCurrencyShowcase;
+
+    [Header("Authentication Panels")]
     public Animator registerTab;
     public Animator loginTab;
+    public Animator signInPanel;
+
+    [Header("Authentication Inputs")]
     public TMP_InputField registerUsernameField;
     public TMP_InputField registerPasswordField;
     public TMP_InputField loginUsernameField;
     public TMP_InputField loginPasswordField;
+
+    [Header("Password Visibility")]
     public Image registerPasswordShow;
     public Image loginPasswordShow;
     public Sprite showPassword;
     public Sprite hidePassword;
-    public GameObject loadingBlocker;
+
+    [Header("Notifications & Popups")]
     public Animator notificationQRAppear;
     public Animator cameraQRMenu;
-    public Animator signInPanel;
     public ScalePanel modernScalePanel;
-    public TextMeshProUGUI[] everyCurrencyShowcase;
-    [HideInInspector] public int storedBalance;
+
+    [Header("Loading & Transitions")]
+    public GameObject loadingBlocker;
     public TransitionSettings transitionSettings;
-    [Header("Link Endpoints")]
+
+    #endregion
+
+    #region Runtime Data
+
+    [Header("Runtime Data")]
+    [HideInInspector] public int storedBalance;
+
+    #endregion
+
+    #region API Configuration
+
+    [Header("Base URL")]
     public string baseLink = "https://scaleweight-to-unity-production.up.railway.app";
+
+    [Header("Authentication Endpoints")]
     public string registerEndpoint = "/register";
     public string loginEndpoint = "/login";
-    public string profileEndpoint = "/profile";
-    public string getScaleEndpoint = "/scale/";
-    public string depositEndpoint = "/deposit";
     public string firebaseEndpoint = "/firebase-login";
+
+    [Header("User Endpoints")]
+    public string profileEndpoint = "/profile";
+
+    [Header("Scale Endpoints")]
+    public string getScaleEndpoint = "/scale/";
+
+    [Header("Payment Endpoints")]
+    public string depositEndpoint = "/deposit";
     public string paymentEndpoint = "/payment";
+
+    #endregion
 
     private void Awake()
     {

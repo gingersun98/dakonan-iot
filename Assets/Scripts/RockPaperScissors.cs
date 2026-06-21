@@ -120,7 +120,13 @@ public class RockPaperScissors : MonoBehaviour
         yield return new WaitForSeconds(1.2f);
 
         GameManager.Instance.SuccessRPS(playerWin);
-        anim.Play("PanelDisappear", 0, 0f);
+        if (anim != null)
+        {
+            anim.Play("PanelDisappear", 0, 0f);
+        } else
+        {
+            gameObject.SetActive(false);
+        }
     }
 
     private IEnumerator SpinningEnemyHand()
