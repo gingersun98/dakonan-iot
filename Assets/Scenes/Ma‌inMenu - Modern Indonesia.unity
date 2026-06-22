@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 232}
   - component: {fileID: 643}
   - component: {fileID: 644}
+  - component: {fileID: 645}
   m_Layer: 5
   m_Name: Image
   m_TagString: Untagged
@@ -432,7 +433,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 29}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 938b32766bc19c94b8d385781ca13a3e, type: 3}
   m_Name: 
@@ -497,8 +498,22 @@ MonoBehaviour:
     serializedVersion: 2
     x: 0
     y: 0
-    width: 1
+    width: 3
     height: 2
+--- !u!114 &645
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 29}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7efe97f14afd19e438c9dde034e98806, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RaawImageOrientation
+  landscapeUV: {x: 3, y: 2}
+  portraitUV: {x: 1, y: 2}
 --- !u!114 &669
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5530,7 +5545,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 41.179993, y: -41.17993}
+  m_AnchoredPosition: {x: 41.17993, y: -41.180176}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &425804930
@@ -12503,8 +12518,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MainMenu
   accountDetail: {fileID: 1351264302}
   accountName: {fileID: 1737407178}
+  everyCurrencyShowcase:
+  - {fileID: 472560580}
+  - {fileID: 1039995868}
+  - {fileID: 1689778338}
+  - {fileID: 990422733}
   registerTab: {fileID: 713328202}
   loginTab: {fileID: 1379844682}
+  signInPanel: {fileID: 1998107666}
   registerUsernameField: {fileID: 333443804}
   registerPasswordField: {fileID: 1543583566}
   loginUsernameField: {fileID: 478129296}
@@ -12513,25 +12534,19 @@ MonoBehaviour:
   loginPasswordShow: {fileID: 1152633355}
   showPassword: {fileID: 21300000, guid: 85ecf1e3cb1eb3048bcdc96282d42905, type: 3}
   hidePassword: {fileID: 21300000, guid: ccd38abc0d8e58846a67c86c7f7c8d56, type: 3}
-  loadingBlocker: {fileID: 1090673164}
   notificationQRAppear: {fileID: 54592500}
   cameraQRMenu: {fileID: 132775204}
-  signInPanel: {fileID: 1998107666}
   modernScalePanel: {fileID: 1765546174}
-  everyCurrencyShowcase:
-  - {fileID: 472560580}
-  - {fileID: 1039995868}
-  - {fileID: 1689778338}
-  - {fileID: 990422733}
-  storedBalance: 0
+  loadingBlocker: {fileID: 1090673164}
   transitionSettings: {fileID: 11400000, guid: 057babd6f13132c449650d99e3c4e99c, type: 2}
+  storedBalance: 0
   baseLink: https://scaleweight-to-unity-production.up.railway.app
   registerEndpoint: /register
   loginEndpoint: /login
+  firebaseEndpoint: /firebase-login
   profileEndpoint: /profile
   getScaleEndpoint: /scale/
   depositEndpoint: /deposit
-  firebaseEndpoint: /firebase-login
   paymentEndpoint: /payment
 --- !u!114 &976556119
 MonoBehaviour:
@@ -12567,7 +12582,7 @@ MonoBehaviour:
   m_ScaleFactor: 1
   m_ReferenceResolution: {x: 720, y: 1600}
   m_ScreenMatchMode: 0
-  m_MatchWidthOrHeight: 0.5
+  m_MatchWidthOrHeight: 1
   m_PhysicalUnit: 3
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
@@ -24009,7 +24024,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 0, y: -35.49994}
+  m_AnchoredPosition: {x: 0, y: -35.5}
   m_SizeDelta: {x: 536.59, y: 249.81}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &2034146678
