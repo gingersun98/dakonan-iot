@@ -23,14 +23,14 @@ public class FirebaseManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
-        #if UNITY_ANDROID && !UNITY_EDITOR
+        #if UNITY_ANDROID || UNITY_EDITOR
         await InitializeFirebase();
         #endif
     }
 
     private async Task InitializeFirebase()
     {
-        #if UNITY_ANDROID && !UNITY_EDITOR
+        #if UNITY_ANDROID || UNITY_EDITOR
         var dependencyStatus =
             await FirebaseApp.CheckAndFixDependenciesAsync();
 
