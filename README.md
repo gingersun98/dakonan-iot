@@ -2158,6 +2158,7 @@ Target kita dalam tutorial ini adalah :
 - **Account Panels** → Berisi tombol untuk Sign In dengan Google, serta juga Sign In secara Guest, namun ini opsional karena hanya untuk Editor. Jika ingin Sign In secara Guest, kita juga membuat **Register** dan **Login** Tab.
 - **Quit Panel** → Berisi konfirmasi untuk keluar dari game.
 - **Settings Panel** → Berisi dua **Slider** yang digunakan untuk mengkontrol volume, serta tombol Back untuk menutupnya.
+- **Choose Credit Panel** → Berisi tiga tombol, yaitu `Otomatis`, `Manual`, dan `Kembali`.
 - **QR Scanning Panel** → Berisi **Raw Image** untuk menunjukkan kamera pemain sehingga bisa scan kode QR. Kode QR ini akan membuka **Credit Conversion Panel**.
 - **Conversion Credit Panel** → Berisi teks yang menunjukkan berapa banyak gram yang ada dalam timbangan, serta berapa banyak hasil yang didapatkan. Lalu ada dua tombol untuk menerima Credit atau menutup tab.
 - **Select Games Panel** → Berisi 4 tombol yang digunakan untuk memilih mode permainan apa yang ingin dimainkan. Jika menekan salah satu tombol, akan membuka **Select Games Sub-Panel**.
@@ -2174,13 +2175,11 @@ using EasyTransition;
 using Firebase.Auth;
 using Google;
 using Proyecto26;
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class MainMenu : MonoBehaviour
@@ -2212,8 +2211,10 @@ public class MainMenu : MonoBehaviour
     public Sprite hidePassword;
 
     [Header("Notifications & Popups")]
-    public Animator notificationQRAppear;
+    public TextMeshProUGUI[] notificationQRText;
+    public Animator[] notificationQRAppear;
     public Animator cameraQRMenu;
+    public Animator autoOrManualPanel;
     public ScalePanel modernScalePanel;
 
     [Header("Loading & Transitions")]
@@ -2232,8 +2233,7 @@ public class MainMenu : MonoBehaviour
     #region API Configuration
 
     [Header("Base URL")]
-	// Ganti ini sesuai dengan link backend-mu.
-    public string baseLink = "https://backend.com";
+    public string baseLink = "https://scaleweight-to-unity-production.up.railway.app";
 
     [Header("Authentication Endpoints")]
     public string registerEndpoint = "/register";
@@ -2245,6 +2245,8 @@ public class MainMenu : MonoBehaviour
 
     [Header("Scale Endpoints")]
     public string getScaleEndpoint = "/scale/";
+    public string releaseScaleEndpoint = "/scale/{id}/release";
+    public string autoScaleID = "timbanganID1";
 
     [Header("Payment Endpoints")]
     public string depositEndpoint = "/deposit";
@@ -2508,18 +2510,34 @@ public class MainMenu : MonoBehaviour
     public void CheckScale(string scaleID)
     {
         loadingBlocker.SetActive(true);
-        RestClient.Get<ScaleResponse>(baseLink + getScaleEndpoint + scaleID).Then(response =>
+
+        var request = new RequestHelper
+        {
+            Uri = baseLink + getScaleEndpoint + scaleID,
+            Method = "GET",
+            Headers = new System.Collections.Generic.Dictionary<string, string>
+            {
+                { "Authorization", "Bearer " + PlayerPrefs.GetString("token", "")}
+            }
+        };
+
+        RestClient.Get<ScaleResponse>(request).Then(response =>
         {
             loadingBlocker.SetActive(false);
             if (response.deposited)
             {
                 Debug.LogError("Failure to get scale with ID \"" + scaleID + "\" : This scale is already deposited! Take off the weight first!");
                 modernScalePanel.storedScale = "";
-                notificationQRAppear.gameObject.SetActive(true);
-                notificationQRAppear.Play("TurnAppear", 0, 0f);
+                for (int i =0; i < notificationQRAppear.Length; i++)
+                {
+                    notificationQRText[i].text = "Lepas semua berat di timbangan terlebih dahulu!";
+                    notificationQRAppear[i].gameObject.SetActive(true);
+                    notificationQRAppear[i].Play("TurnAppear", 0, 0f);
+                }
                 return;
             }
             cameraQRMenu.Play("PanelDisappear", 0, 0f);
+            autoOrManualPanel.Play("PanelDisappear", 0, 0f);
             modernScalePanel.gameObject.SetActive(true);
             modernScalePanel.Initialize(scaleID, storedBalance);
         }).Catch(error =>
@@ -2527,28 +2545,47 @@ public class MainMenu : MonoBehaviour
             loadingBlocker.SetActive(false);
             Debug.LogError("Failure to get scale with ID \"" + scaleID + "\" : " + error);
             modernScalePanel.storedScale = "";
-            notificationQRAppear.gameObject.SetActive(true);
-            notificationQRAppear.Play("TurnAppear", 0, 0f);
+            var reqEx = error as Proyecto26.RequestException;
+
+            if (reqEx != null)
+            {
+                var err =
+                    JsonUtility.FromJson<ErrorMessage>(
+                        reqEx.Response
+                    );
+
+                for (int i = 0; i < notificationQRAppear.Length; i++)
+                {
+                    notificationQRText[i].text = "" + err.message;
+                    notificationQRAppear[i].gameObject.SetActive(true);
+                    notificationQRAppear[i].Play("TurnAppear", 0, 0f);
+                }
+            }
             QRScanning.Instance.Initialize();
         });
     }
 
+    public void AutomaticScale()
+    {
+        CheckScale(autoScaleID);
+    }
+
     public void DepositScale()
     {
-        if (string.IsNullOrEmpty(modernScalePanel.storedScale) && !modernScalePanel.randomizedValue)
-            return;
         if (modernScalePanel.randomizedValue)
         {
             StopScaleConnection();
             return;
         }
+        if (string.IsNullOrEmpty(modernScalePanel.storedScale) && !modernScalePanel.randomizedValue)
+            return;
         loadingBlocker.SetActive(true);
         string token = PlayerPrefs.GetString("token");
 
         RestClient.Request<DepositResponse>(
             new RequestHelper
             {
-                Uri = baseLink + "/deposit",
+                Uri = baseLink + depositEndpoint,
                 Method = "POST",
                 Body = new DepositRequest
                 {
@@ -2575,14 +2612,64 @@ public class MainMenu : MonoBehaviour
         {
             Debug.LogError(error);
             loadingBlocker.SetActive(false);
+            var reqEx = error as Proyecto26.RequestException;
+
+            if (reqEx != null)
+            {
+                var err =
+                    JsonUtility.FromJson<ErrorMessage>(
+                        reqEx.Response
+                    );
+
+                for (int i = 0; i < notificationQRAppear.Length; i++)
+                {
+                    notificationQRText[i].text = "" + err.message;
+                    notificationQRAppear[i].gameObject.SetActive(true);
+                    notificationQRAppear[i].Play("TurnAppear", 0, 0f);
+                }
+            }
         });
+    }
+
+    public void StartNotification(string notify)
+    {
+        for (int i = 0; i < notificationQRAppear.Length; i++)
+        {
+            notificationQRText[i].text = notify;
+            notificationQRAppear[i].gameObject.SetActive(true);
+            notificationQRAppear[i].Play("TurnAppear", 0, 0f);
+        }
     }
 
     public void StopScaleConnection()
     {
-        modernScalePanel.storedScale = "";
-        modernScalePanel.selfAnim.Play("PanelDisappear", 0, 0f);
-        cameraQRMenu.gameObject.SetActive(true);
+        if (!string.IsNullOrEmpty(modernScalePanel.storedScale))
+        {
+            var request = new RequestHelper
+            {
+                Uri = baseLink + releaseScaleEndpoint.Replace("{id}", modernScalePanel.storedScale),
+                Method = "GET",
+                Headers = new System.Collections.Generic.Dictionary<string, string>
+            {
+                { "Authorization", "Bearer " + PlayerPrefs.GetString("token", "")}
+            }
+            };
+
+            RestClient.Post(request).Catch(error =>
+            {
+                Debug.LogError(error);
+            });
+
+            modernScalePanel.storedScale = "";
+            modernScalePanel.selfAnim.Play("PanelDisappear", 0, 0f);
+            autoOrManualPanel.gameObject.SetActive(true);
+        }
+        if (modernScalePanel.randomizedValue)
+        {
+            modernScalePanel.storedScale = "";
+            modernScalePanel.selfAnim.Play("PanelDisappear", 0, 0f);
+            autoOrManualPanel.gameObject.SetActive(true);
+        }
     }
 
     public void SignInGoogle()
@@ -2810,7 +2897,14 @@ public class FirebaseLoginRequest
 public class PaymentResponse
 {
     public bool success;
+
     public int remaining;
+}
+
+[System.Serializable]
+public class ErrorMessage
+{
+    public string message;
 }
 ```
 
@@ -2828,6 +2922,7 @@ public class PaymentResponse
 | `GetProfile`          | ❌                                          | Mengambil data profil pengguna dari server berdasarkan token yang tersimpan.                                                           |
 | `ShowPassword`        | ❌                                          | Menampilkan atau menyembunyikan password pada form login atau register.                                                                |
 | `CheckScale`          | `string scaleID`                           | Memeriksa status timbangan berdasarkan ID QR yang dipindai dan membuka panel timbangan jika valid.                                     |
+| `AutomaticScale`      | ❌                                          | Menyambungkan koneksi ke timbangan tertentu tanpa menggunakan kode QR.                                                                 |
 | `DepositScale`        | ❌                                          | Mengirim data timbangan ke server untuk melakukan deposit dan menambahkan saldo pengguna.                                              |
 | `StopScaleConnection` | ❌                                          | Menghentikan koneksi timbangan, menutup panel timbangan, dan kembali ke menu kamera QR.                                                |
 | `SignInGoogle`        | ❌                                          | Memulai proses login menggunakan akun Google dan Firebase Authentication.                                                              |
@@ -2847,6 +2942,7 @@ public class PaymentResponse
 | `DepositResponse`      | `earned`, `totalCredit`        | Hasil deposit berupa kredit yang diperoleh dan total saldo terbaru. |
 | `FirebaseLoginRequest` | `firebaseToken`                | Data token Firebase yang dikirim ke backend.                        |
 | `PaymentResponse`      | `success`, `remaining`         | Hasil pembayaran permainan dan sisa saldo pengguna.                 |
+| `ErrorMessage`         | `message`                      | Hasil pesan error dari backend.                                     |
 
 2. `Settings.cs`
 ```csharp
@@ -2936,6 +3032,7 @@ public class QRScanning : MonoBehaviour
         if (camTexture != null)
             camTexture.Stop();
         if (checkPermissionRoutine != null) StopCoroutine(checkPermissionRoutine);
+		StopAllCoroutine();
     }
 
     public void Initialize()
@@ -3216,21 +3313,34 @@ public class ScalePanel : MonoBehaviour
 		storedBalance = lastBalance;
 		refreshTimer = 0;
 		hasRefreshed = false;
-		RestClient.Get<ScaleResponse>(MainMenu.Instance.baseLink + MainMenu.Instance.getScaleEndpoint + storedScale).Then(response =>
-		{
-			scaleAmount.text = response.weight.ToString("N0") + "<size=20><br>GRAM";
-			creditAmount.text = "<sprite index=0> " + (response.weight / 100).ToString("N0");
-			oldBalance.text = "<sprite index=0> " + storedBalance.ToString("N0");
-			newBalance.text = "<sprite index=0> " + (storedBalance + response.weight / 100).ToString("N0");
-            foreach (Animator anim in valueUpdate)
+
+        var request = new RequestHelper
+        {
+            Uri = MainMenu.Instance.baseLink + MainMenu.Instance.getScaleEndpoint + scale,
+            Method = "GET",
+            Headers = new System.Collections.Generic.Dictionary<string, string>
             {
-                anim.Play("ScaleAmountUpdate", 0, 0f);
+                { "Authorization", "Bearer " + PlayerPrefs.GetString("token", "")}
             }
-        }).Catch(error =>
-		{
-			print("Error while fetching scale's information : " + error + " | scaleId : " + storedScale);
-			FakeInitialize();
-		});
+        };
+
+        RestClient.Get<ScaleResponse>(request)
+            .Then(response =>
+            {
+                scaleAmount.text = response.weight.ToString("N0") + "<size=20><br>GRAM";
+                creditAmount.text = "<sprite index=0> " + (response.weight / 100).ToString("N0");
+                oldBalance.text = "<sprite index=0> " + storedBalance.ToString("N0");
+                newBalance.text = "<sprite index=0> " + (storedBalance + response.weight / 100).ToString("N0");
+                foreach (Animator anim in valueUpdate)
+                {
+                    anim.Play("ScaleAmountUpdate", 0, 0f);
+                }
+            })
+            .Catch(error =>
+            {
+                print("Error while fetching scale's information : " + error + " | scaleId : " + storedScale);
+                FakeInitialize();
+            });
 
 		if (TutorialManager.Instance.IsTutorialActive() && TutorialManager.Instance.GetActiveState().progressAfterScan)
 		{
@@ -3266,6 +3376,51 @@ public class ScalePanel : MonoBehaviour
 		if (refreshTimer >= 2f && !hasRefreshed && !randomizedValue && !string.IsNullOrEmpty(storedScale))
 		{
 			hasRefreshed = true;
+
+            var request = new RequestHelper
+            {
+                Uri = MainMenu.Instance.baseLink + MainMenu.Instance.getScaleEndpoint + storedScale,
+                Method = "GET",
+                Headers = new System.Collections.Generic.Dictionary<string, string>
+            {
+                { "Authorization", "Bearer " + PlayerPrefs.GetString("token", "")}
+            }
+            };
+
+            RestClient.Get<ScaleResponse>(request)
+                .Then(response =>
+                {
+                    if (scaleAmount.text != response.weight.ToString("N0") + "<size=20><br>GRAM")
+                    {
+                        foreach (Animator anim in valueUpdate)
+                        {
+                            anim.Play("ScaleAmountUpdate", 0, 0f);
+                        }
+                    }
+                    scaleAmount.text = response.weight.ToString("N0") + "<size=20><br>GRAM";
+                    creditAmount.text = "<sprite index=0> " + (response.weight / 100).ToString("N0");
+                    oldBalance.text = "<sprite index=0> " + storedBalance.ToString("N0");
+                    newBalance.text = "<sprite index=0> " + (storedBalance + response.weight / 100).ToString("N0");
+                    refreshTimer = 0;
+                    hasRefreshed = false;
+                })
+                .Catch(error =>
+                {
+                    print("Error while fetching scale's information : " + error + " | scaleId : " + storedScale);
+                    var reqEx = error as Proyecto26.RequestException;
+
+                    if (reqEx != null && (reqEx.StatusCode == 403 || reqEx.StatusCode == 401))
+                    {
+                        MainMenu.Instance.StartNotification("Koneksi terputus.");
+                        MainMenu.Instance.StopScaleConnection();
+                    } else
+                    {
+                        refreshTimer = 0;
+                        hasRefreshed = false;
+                    }
+                });
+
+            /*
             RestClient.Get<ScaleResponse>(MainMenu.Instance.baseLink + MainMenu.Instance.getScaleEndpoint + storedScale).Then(response =>
             {
                 if (scaleAmount.text != response.weight.ToString("N0") + "<size=20><br>GRAM")
@@ -3287,6 +3442,7 @@ public class ScalePanel : MonoBehaviour
 				refreshTimer = 0;
 				hasRefreshed = false;
             });
+            */ // OLD
         } else if (randomizedValue && refreshTimer >= 0.2f)
 		{
             foreach (Animator anim in valueUpdate)
@@ -3303,7 +3459,6 @@ public class ScalePanel : MonoBehaviour
         }
     }
 }
-
 ```
 
 | Nama Function    | Parameters                        | Penjelasan                                                                                                                                                               |
@@ -3541,9 +3696,13 @@ public class TutorialManager : MonoBehaviour
         }
 
         lastButtonForTutorial = state.targetHighlight.GetComponent<Button>();
-        if (lastButtonForTutorial != null)
+        if (lastButtonForTutorial != null && lastButtonForTutorial != skipTutorial)
         {
             lastButtonForTutorial.onClick.AddListener(StartTutorial);
+        }
+        if (lastButtonForTutorial == skipTutorial)
+        {
+            lastButtonForTutorial = null;
         }
 
         tutorialIndex++;
@@ -3910,8 +4069,19 @@ Di `MainMenu.cs`, masukkan variable berikut :
   
    `SFX Slider` **OnValueChanged()** :
    - ``Settings Panel`` > `Settings` > `**SetVolume(false)**`
+  
+6. **Choose Credit Panel** → Memiliki 2 tombol untuk memilih apakah ingin langsung menyambungkan ke timbangan atau menggunakan kode QR. Disini ada **Notification Tab**, masukkan ke panel ini. Jangan lupa untuk memasukkan **Animator** dan **TextMeshProUGUI - Text (UI)** ke dalam `MainMenu.cs` di variable `notifcationQRText` dan `notificationQRAppear`. Tambahkan animasi dengan nama `TurnAppear` dan **Loop Time** dimatikan.
 
-7. **QR Scanning Panel** → Memiliki **Raw Image** untuk menunjukkan kamera, tombol untuk menanyakan apabila aplikasi tidak punya akses ke kamera, dan tombol menutup panel. Tambahkan `QRScanning.cs` ke objek `QR Scanning Panel`. Masukkan variable **Raw Image** ke `targetImage` dan tombol menanyakan ke `askForCameraButton`. Serta, buat animasi notifikasi apabila QR gagal untuk discan. Pastikan nama **AnimationClip**-nya adalah `TurnAppear` dan **Loop Time** dimatikan.
+   `Automatic Button` **OnValueChanged()** :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `Canvas` > `MainMenu` > `**AutomaticScale()**`
+  
+   `Manual Button` **OnValueChanged()** :
+   - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
+   - `QR Scanning Panel` > `GameObject` > `**SetActive(true)**`
+   - `Choose Credit Panel` > `Animator` > `**Play("PanelDisappear")**`
+
+8. **QR Scanning Panel** → Memiliki **Raw Image** untuk menunjukkan kamera, tombol untuk menanyakan apabila aplikasi tidak punya akses ke kamera, dan tombol menutup panel. Tambahkan `QRScanning.cs` ke objek `QR Scanning Panel`. Masukkan variable **Raw Image** ke `targetImage` dan tombol menanyakan ke `askForCameraButton`. Disini juga ada **Notification Tab**, duplikat dari yang lain, lalu masukkan ke panel ini. Jangan lupa untuk memasukkan **Animator** dan **TextMeshProUGUI - Text (UI)** ke dalam `MainMenu.cs` di variable `notifcationQRText` dan `notificationQRAppear`.
 
 Di `MainMenu.cs`, masukkan variable berikut :
 - Camera QR Menu : `QR Scanning Panel (Animator)`
@@ -3925,7 +4095,7 @@ Di `MainMenu.cs`, masukkan variable berikut :
    - Self Anim : `Conversion Credit Panel` → Animator objek itu sendiri.
    - Value Update : `OPSIONAL` → Bebas mau diisi animasi apa, ini akan jalan setiap isi dari timbangan ter-update.
    
-   Serta, juga ada tombol `Claim` dan tombol `Back`.  Masukkan fungsi berikut :
+   Disini juga ada tombol `Claim` dan tombol `Back`.  Masukkan fungsi berikut :
    
    `Claim` :
    - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
@@ -3934,6 +4104,8 @@ Di `MainMenu.cs`, masukkan variable berikut :
    `Back` :
    - `Canvas` > `MainMenu` > `**PlaySFX("button")**`
    - `Canvas` > `MainMenu` > `**StopScaleConnection()**`
+
+Untuk yang terakhir, duplikat **Notification Tab**, lalu masukkan ke panel ini. Jangan lupa untuk memasukkan **Animator** dan **TextMeshProUGUI - Text (UI)** ke dalam `MainMenu.cs` di variable `notifcationQRText` dan `notificationQRAppear`. 
   
 Di `MainMenu.cs`, masukkan variable berikut :
 - Modern Scale Panel : `Conversion Credit Panel (Scale Panel)`
