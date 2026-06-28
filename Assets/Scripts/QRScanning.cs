@@ -39,6 +39,7 @@ public class QRScanning : MonoBehaviour
         if (camTexture != null)
             camTexture.Stop();
         if (checkPermissionRoutine != null) StopCoroutine(checkPermissionRoutine);
+        StopAllCoroutines();
     }
 
     public void Initialize()

@@ -70,9 +70,13 @@ public class TutorialManager : MonoBehaviour
         }
 
         lastButtonForTutorial = state.targetHighlight.GetComponent<Button>();
-        if (lastButtonForTutorial != null)
+        if (lastButtonForTutorial != null && lastButtonForTutorial != skipTutorial)
         {
             lastButtonForTutorial.onClick.AddListener(StartTutorial);
+        }
+        if (lastButtonForTutorial == skipTutorial)
+        {
+            lastButtonForTutorial = null;
         }
 
         tutorialIndex++;

@@ -2,13 +2,11 @@ using EasyTransition;
 using Firebase.Auth;
 using Google;
 using Proyecto26;
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class MainMenu : MonoBehaviour
@@ -40,8 +38,10 @@ public class MainMenu : MonoBehaviour
     public Sprite hidePassword;
 
     [Header("Notifications & Popups")]
-    public Animator notificationQRAppear;
+    public TextMeshProUGUI[] notificationQRText;
+    public Animator[] notificationQRAppear;
     public Animator cameraQRMenu;
+    public Animator autoOrManualPanel;
     public ScalePanel modernScalePanel;
 
     [Header("Loading & Transitions")]
@@ -72,6 +72,8 @@ public class MainMenu : MonoBehaviour
 
     [Header("Scale Endpoints")]
     public string getScaleEndpoint = "/scale/";
+    public string releaseScaleEndpoint = "/scale/{id}/release";
+    public string autoScaleID = "timbanganID1";
 
     [Header("Payment Endpoints")]
     public string depositEndpoint = "/deposit";
@@ -335,18 +337,34 @@ public class MainMenu : MonoBehaviour
     public void CheckScale(string scaleID)
     {
         loadingBlocker.SetActive(true);
-        RestClient.Get<ScaleResponse>(baseLink + getScaleEndpoint + scaleID).Then(response =>
+
+        var request = new RequestHelper
+        {
+            Uri = baseLink + getScaleEndpoint + scaleID,
+            Method = "GET",
+            Headers = new System.Collections.Generic.Dictionary<string, string>
+            {
+                { "Authorization", "Bearer " + PlayerPrefs.GetString("token", "")}
+            }
+        };
+
+        RestClient.Get<ScaleResponse>(request).Then(response =>
         {
             loadingBlocker.SetActive(false);
             if (response.deposited)
             {
                 Debug.LogError("Failure to get scale with ID \"" + scaleID + "\" : This scale is already deposited! Take off the weight first!");
                 modernScalePanel.storedScale = "";
-                notificationQRAppear.gameObject.SetActive(true);
-                notificationQRAppear.Play("TurnAppear", 0, 0f);
+                for (int i =0; i < notificationQRAppear.Length; i++)
+                {
+                    notificationQRText[i].text = "Lepas semua berat di timbangan terlebih dahulu!";
+                    notificationQRAppear[i].gameObject.SetActive(true);
+                    notificationQRAppear[i].Play("TurnAppear", 0, 0f);
+                }
                 return;
             }
             cameraQRMenu.Play("PanelDisappear", 0, 0f);
+            autoOrManualPanel.Play("PanelDisappear", 0, 0f);
             modernScalePanel.gameObject.SetActive(true);
             modernScalePanel.Initialize(scaleID, storedBalance);
         }).Catch(error =>
@@ -354,28 +372,47 @@ public class MainMenu : MonoBehaviour
             loadingBlocker.SetActive(false);
             Debug.LogError("Failure to get scale with ID \"" + scaleID + "\" : " + error);
             modernScalePanel.storedScale = "";
-            notificationQRAppear.gameObject.SetActive(true);
-            notificationQRAppear.Play("TurnAppear", 0, 0f);
+            var reqEx = error as Proyecto26.RequestException;
+
+            if (reqEx != null)
+            {
+                var err =
+                    JsonUtility.FromJson<ErrorMessage>(
+                        reqEx.Response
+                    );
+
+                for (int i = 0; i < notificationQRAppear.Length; i++)
+                {
+                    notificationQRText[i].text = "" + err.message;
+                    notificationQRAppear[i].gameObject.SetActive(true);
+                    notificationQRAppear[i].Play("TurnAppear", 0, 0f);
+                }
+            }
             QRScanning.Instance.Initialize();
         });
     }
 
+    public void AutomaticScale()
+    {
+        CheckScale(autoScaleID);
+    }
+
     public void DepositScale()
     {
-        if (string.IsNullOrEmpty(modernScalePanel.storedScale) && !modernScalePanel.randomizedValue)
-            return;
         if (modernScalePanel.randomizedValue)
         {
             StopScaleConnection();
             return;
         }
+        if (string.IsNullOrEmpty(modernScalePanel.storedScale) && !modernScalePanel.randomizedValue)
+            return;
         loadingBlocker.SetActive(true);
         string token = PlayerPrefs.GetString("token");
 
         RestClient.Request<DepositResponse>(
             new RequestHelper
             {
-                Uri = baseLink + "/deposit",
+                Uri = baseLink + depositEndpoint,
                 Method = "POST",
                 Body = new DepositRequest
                 {
@@ -402,14 +439,64 @@ public class MainMenu : MonoBehaviour
         {
             Debug.LogError(error);
             loadingBlocker.SetActive(false);
+            var reqEx = error as Proyecto26.RequestException;
+
+            if (reqEx != null)
+            {
+                var err =
+                    JsonUtility.FromJson<ErrorMessage>(
+                        reqEx.Response
+                    );
+
+                for (int i = 0; i < notificationQRAppear.Length; i++)
+                {
+                    notificationQRText[i].text = "" + err.message;
+                    notificationQRAppear[i].gameObject.SetActive(true);
+                    notificationQRAppear[i].Play("TurnAppear", 0, 0f);
+                }
+            }
         });
+    }
+
+    public void StartNotification(string notify)
+    {
+        for (int i = 0; i < notificationQRAppear.Length; i++)
+        {
+            notificationQRText[i].text = notify;
+            notificationQRAppear[i].gameObject.SetActive(true);
+            notificationQRAppear[i].Play("TurnAppear", 0, 0f);
+        }
     }
 
     public void StopScaleConnection()
     {
-        modernScalePanel.storedScale = "";
-        modernScalePanel.selfAnim.Play("PanelDisappear", 0, 0f);
-        cameraQRMenu.gameObject.SetActive(true);
+        if (!string.IsNullOrEmpty(modernScalePanel.storedScale))
+        {
+            var request = new RequestHelper
+            {
+                Uri = baseLink + releaseScaleEndpoint.Replace("{id}", modernScalePanel.storedScale),
+                Method = "GET",
+                Headers = new System.Collections.Generic.Dictionary<string, string>
+            {
+                { "Authorization", "Bearer " + PlayerPrefs.GetString("token", "")}
+            }
+            };
+
+            RestClient.Post(request).Catch(error =>
+            {
+                Debug.LogError(error);
+            });
+
+            modernScalePanel.storedScale = "";
+            modernScalePanel.selfAnim.Play("PanelDisappear", 0, 0f);
+            autoOrManualPanel.gameObject.SetActive(true);
+        }
+        if (modernScalePanel.randomizedValue)
+        {
+            modernScalePanel.storedScale = "";
+            modernScalePanel.selfAnim.Play("PanelDisappear", 0, 0f);
+            autoOrManualPanel.gameObject.SetActive(true);
+        }
     }
 
     public void SignInGoogle()
@@ -639,4 +726,10 @@ public class PaymentResponse
     public bool success;
 
     public int remaining;
+}
+
+[System.Serializable]
+public class ErrorMessage
+{
+    public string message;
 }

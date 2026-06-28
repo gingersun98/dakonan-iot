@@ -33,21 +33,34 @@ public class ScalePanel : MonoBehaviour
 		storedBalance = lastBalance;
 		refreshTimer = 0;
 		hasRefreshed = false;
-		RestClient.Get<ScaleResponse>(MainMenu.Instance.baseLink + MainMenu.Instance.getScaleEndpoint + storedScale).Then(response =>
-		{
-			scaleAmount.text = response.weight.ToString("N0") + "<size=20><br>GRAM";
-			creditAmount.text = "<sprite index=0> " + (response.weight / 100).ToString("N0");
-			oldBalance.text = "<sprite index=0> " + storedBalance.ToString("N0");
-			newBalance.text = "<sprite index=0> " + (storedBalance + response.weight / 100).ToString("N0");
-            foreach (Animator anim in valueUpdate)
+
+        var request = new RequestHelper
+        {
+            Uri = MainMenu.Instance.baseLink + MainMenu.Instance.getScaleEndpoint + scale,
+            Method = "GET",
+            Headers = new System.Collections.Generic.Dictionary<string, string>
             {
-                anim.Play("ScaleAmountUpdate", 0, 0f);
+                { "Authorization", "Bearer " + PlayerPrefs.GetString("token", "")}
             }
-        }).Catch(error =>
-		{
-			print("Error while fetching scale's information : " + error + " | scaleId : " + storedScale);
-			FakeInitialize();
-		});
+        };
+
+        RestClient.Get<ScaleResponse>(request)
+            .Then(response =>
+            {
+                scaleAmount.text = response.weight.ToString("N0") + "<size=20><br>GRAM";
+                creditAmount.text = "<sprite index=0> " + (response.weight / 100).ToString("N0");
+                oldBalance.text = "<sprite index=0> " + storedBalance.ToString("N0");
+                newBalance.text = "<sprite index=0> " + (storedBalance + response.weight / 100).ToString("N0");
+                foreach (Animator anim in valueUpdate)
+                {
+                    anim.Play("ScaleAmountUpdate", 0, 0f);
+                }
+            })
+            .Catch(error =>
+            {
+                print("Error while fetching scale's information : " + error + " | scaleId : " + storedScale);
+                FakeInitialize();
+            });
 
 		if (TutorialManager.Instance.IsTutorialActive() && TutorialManager.Instance.GetActiveState().progressAfterScan)
 		{
@@ -83,6 +96,51 @@ public class ScalePanel : MonoBehaviour
 		if (refreshTimer >= 2f && !hasRefreshed && !randomizedValue && !string.IsNullOrEmpty(storedScale))
 		{
 			hasRefreshed = true;
+
+            var request = new RequestHelper
+            {
+                Uri = MainMenu.Instance.baseLink + MainMenu.Instance.getScaleEndpoint + storedScale,
+                Method = "GET",
+                Headers = new System.Collections.Generic.Dictionary<string, string>
+            {
+                { "Authorization", "Bearer " + PlayerPrefs.GetString("token", "")}
+            }
+            };
+
+            RestClient.Get<ScaleResponse>(request)
+                .Then(response =>
+                {
+                    if (scaleAmount.text != response.weight.ToString("N0") + "<size=20><br>GRAM")
+                    {
+                        foreach (Animator anim in valueUpdate)
+                        {
+                            anim.Play("ScaleAmountUpdate", 0, 0f);
+                        }
+                    }
+                    scaleAmount.text = response.weight.ToString("N0") + "<size=20><br>GRAM";
+                    creditAmount.text = "<sprite index=0> " + (response.weight / 100).ToString("N0");
+                    oldBalance.text = "<sprite index=0> " + storedBalance.ToString("N0");
+                    newBalance.text = "<sprite index=0> " + (storedBalance + response.weight / 100).ToString("N0");
+                    refreshTimer = 0;
+                    hasRefreshed = false;
+                })
+                .Catch(error =>
+                {
+                    print("Error while fetching scale's information : " + error + " | scaleId : " + storedScale);
+                    var reqEx = error as Proyecto26.RequestException;
+
+                    if (reqEx != null && (reqEx.StatusCode == 403 || reqEx.StatusCode == 401))
+                    {
+                        MainMenu.Instance.StartNotification("Koneksi terputus.");
+                        MainMenu.Instance.StopScaleConnection();
+                    } else
+                    {
+                        refreshTimer = 0;
+                        hasRefreshed = false;
+                    }
+                });
+
+            /*
             RestClient.Get<ScaleResponse>(MainMenu.Instance.baseLink + MainMenu.Instance.getScaleEndpoint + storedScale).Then(response =>
             {
                 if (scaleAmount.text != response.weight.ToString("N0") + "<size=20><br>GRAM")
@@ -104,6 +162,7 @@ public class ScalePanel : MonoBehaviour
 				refreshTimer = 0;
 				hasRefreshed = false;
             });
+            */ // OLD
         } else if (randomizedValue && refreshTimer >= 0.2f)
 		{
             foreach (Animator anim in valueUpdate)
