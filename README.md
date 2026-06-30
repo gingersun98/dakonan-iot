@@ -103,6 +103,69 @@ Utama  5 Credits
      Dari Awal     Utama
 ```
 
+## 🗺️ ALUR BACKEND
+```
+┌──────────────────────────────┐
+│       Mulai Server           │
+└──────────────┬───────────────┘
+               │
+               ▼
+ Memuat Konfigurasi & Library
+ (Express, MongoDB, Firebase)
+               │
+               ▼
+ Terhubung ke Database
+               │
+               ▼
+ Mendaftarkan Endpoint API
+               │
+               ▼
+     Server Siap Digunakan
+          (Port 3000)
+               │
+     ┌─────────┼─────────────┬─────────────┬─────────────┐
+     │         │             │             │             │
+     ▼         ▼             ▼             ▼             ▼
+ Registrasi  Login   Login Firebase   Data Timbangan   Profil
+     │         │             │             │             │
+     ▼         ▼             ▼             ▼             ▼
+Buat Akun  Verifikasi   Verifikasi     Perbarui /   Verifikasi
+Hash Sandi Kredensial Firebase Token  Lihat Berat      JWT
+Buat JWT   Buat JWT          │             │             │
+     │         │             ▼             ▼             ▼
+     └────┬────┘     Buat Akun Jika   Simpan Berat  Tampilkan
+          │          Belum Ada                     Profil & Kredit
+          │                │
+          └──────────► Buat JWT ◄───────────────┐
+                           │                    │
+                           ▼                    │
+                 Pengguna Terautentikasi        │
+                           │                    │
+                  ┌────────┴─────────┐          │
+                  │                  │          │
+                  ▼                  ▼          │
+              Deposit            Pembayaran     │
+                  │                  │          │
+                  ▼                  ▼          │
+           Verifikasi JWT     Verifikasi JWT    │
+                  │                  │          │
+                  ▼                  ▼          │
+         Periksa Timbangan   Periksa Kredit     │
+                  │                  │          │
+          ┌───────┴───────┐    ┌─────┴─────┐    │
+          │               │    │           │    │
+          ▼               ▼    ▼           ▼    │
+   Tidak Valid /    Berat ≥100g?  Kredit <5  Kredit ≥5
+ Sudah Diproses         │             │           │
+          │        ┌────┴────┐        ▼           ▼
+          ▼        │         │   Gagal Bayar  Kurangi
+   Tampilkan Error ▼         ▼                5 Kredit
+               Belum      Tambah Kredit          │
+             Memenuhi     Tandai Deposit         ▼
+             Syarat            │          Tampilkan
+                               └────────► Sisa Kredit
+```
+
 ---
 
 ## 📁 TUTORIAL 1 - PERSIAPAN PROJEK
